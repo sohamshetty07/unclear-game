@@ -4,25 +4,19 @@ body {
   padding: 0;
   background: #f9f9f9;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
+  display: block;
+  min-height: 100vh;
 }
 
 /* Top Status Banner */
 #topBanner {
-  position: absolute;
-  top: 16px;
-  left: 0;
-  width: 100%;
   text-align: center;
+  margin-top: 16px;
   font-size: 14px;
   color: #555;
-  background: transparent;
 }
 
-/* Main Join Form */
+/* Main Join Form + Landing Styling */
 .join-form {
   background: #fff;
   padding: 32px 24px;
@@ -31,6 +25,7 @@ body {
   border-radius: 20px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
   text-align: center;
+  margin: 40px auto;
 }
 
 .join-form h1 {
@@ -61,7 +56,8 @@ body {
 }
 
 /* Button */
-.join-form button {
+.join-form button,
+#landing button {
   width: 100%;
   padding: 14px;
   font-size: 16px;
@@ -73,14 +69,15 @@ body {
   transition: background-color 0.2s ease-in-out;
 }
 
-.join-form button:hover {
+.join-form button:hover,
+#landing button:hover {
   background-color: #005fd4;
 }
 
 /* Responsive: Smaller Devices */
 @media (max-width: 480px) {
   .join-form {
-    margin: 0 16px;
+    margin: 20px;
     padding: 24px 20px;
   }
 
@@ -90,20 +87,6 @@ body {
 
   #topBanner {
     font-size: 13px;
-    top: 12px;
+    margin-top: 12px;
   }
-}
-
-#landing button {
-  font-size: 16px;
-  padding: 12px 24px;
-  background-color: #007aff;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-}
-
-#landing button:hover {
-  background-color: #005fd4;
 }
