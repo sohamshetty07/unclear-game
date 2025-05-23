@@ -1,22 +1,26 @@
-/* General Reset and Layout */
+/* General Layout */
 body {
   margin: 0;
   padding: 0;
   background: #f9f9f9;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  display: block;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Top Status Banner */
 #topBanner {
   text-align: center;
-  margin-top: 16px;
+  padding: 12px 0;
   font-size: 14px;
   color: #555;
+  background: transparent;
+  position: relative;
+  z-index: 1;
 }
 
-/* Main Join Form + Landing Styling */
+/* Shared Form Styling */
 .join-form {
   background: #fff;
   padding: 32px 24px;
@@ -25,9 +29,14 @@ body {
   border-radius: 20px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
   text-align: center;
-  margin: 40px auto;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: calc(100vh - 60px); /* allow space for banner */
 }
 
+/* Headings */
 .join-form h1 {
   font-size: 24px;
   margin-bottom: 24px;
@@ -55,7 +64,7 @@ body {
   background-color: #fff;
 }
 
-/* Button */
+/* Buttons */
 .join-form button,
 #landing button {
   width: 100%;
@@ -74,11 +83,12 @@ body {
   background-color: #005fd4;
 }
 
-/* Responsive: Smaller Devices */
+/* Responsive Adjustments */
 @media (max-width: 480px) {
   .join-form {
     margin: 20px;
     padding: 24px 20px;
+    min-height: auto;
   }
 
   .join-form h1 {
@@ -87,6 +97,5 @@ body {
 
   #topBanner {
     font-size: 13px;
-    margin-top: 12px;
   }
 }
