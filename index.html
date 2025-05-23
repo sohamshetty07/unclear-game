@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>UnClear MVP</title>
+  <style>
+    body {
+      background: #eee;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      font-family: sans-serif;
+    }
+    #game-container {
+      width: 360px;
+      height: 640px;
+      background: white;
+      border: 1px solid #222;
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+
+  <!-- Load Phaser -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+
+  <!-- Load socket.io client -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Load your game logic -->
+  <script src="game.js"></script>
+</body>
+</html>
