@@ -256,7 +256,7 @@ io.on('connection', socket => {
 
     session.votes[voter] = voted;
 
-    const allVoted = session.players.length === Object.keys(session.votes).length;
+    const allVoted = Object.keys(session.votes).length === session.players.length - 1;
     if (!allVoted) return;
 
     const voteCounts = {};
@@ -290,11 +290,11 @@ io.on('connection', socket => {
     });
 
     // Apply scoring logic
-    session.votes.forEach(({ voter, voted }) => {
+    Object.entries(session.votes).forEach(([voter, voted]) => {
       if (voted === actualImposter) {
-        session.scores[voter] += 1; // Correct guesser
+        session.scores[voter] += 1; // Correct guess
       } else {
-        session.scores[actualImposter] += 1; // Wrong guess → point to imposter
+        session.scores[actualImposter] += 1; // Wrong guess → Imposter rewarded
       }
     });
 
