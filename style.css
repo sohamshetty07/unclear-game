@@ -14,9 +14,30 @@ canvas {
 }
 
 #game-container {
-  width: 360px;
-  height: 640px;
+  width: 95%;
+  max-width: 360px;
+  height: 95vh;
+  max-height: 640px;
   background-color: white;
   border: 1px solid #222;
   position: relative;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile friendly top banner */
+#topBanner {
+  font-size: 16px;
+  padding: 8px 12px;
+  text-align: center;
+  background-color: #fafafa;
+  border-bottom: 1px solid #ccc;
+}
+
+@media (max-width: 480px) {
+  #topBanner {
+    font-size: 14px;
+    padding: 6px 10px;
+    white-space: pre-wrap;
+  }
 }
