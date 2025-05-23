@@ -1,43 +1,95 @@
+/* General Reset and Layout */
 body {
   margin: 0;
   padding: 0;
-  background-color: #f0f0f0;
-  font-family: sans-serif;
+  background: #f9f9f9;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
 }
 
-canvas {
-  border: 2px solid #000;
-}
-
-#game-container {
-  width: 95%;
-  max-width: 360px;
-  height: 95vh;
-  max-height: 640px;
-  background-color: white;
-  border: 1px solid #222;
-  position: relative;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-
-/* Mobile friendly top banner */
+/* Top Status Banner */
 #topBanner {
-  font-size: 16px;
-  padding: 8px 12px;
+  position: absolute;
+  top: 16px;
+  left: 0;
+  width: 100%;
   text-align: center;
-  background-color: #fafafa;
-  border-bottom: 1px solid #ccc;
+  font-size: 14px;
+  color: #555;
+  background: transparent;
 }
 
+/* Main Join Form */
+.join-form {
+  background: #fff;
+  padding: 32px 24px;
+  width: 100%;
+  max-width: 400px;
+  border-radius: 20px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.join-form h1 {
+  font-size: 24px;
+  margin-bottom: 24px;
+  font-weight: 600;
+  color: #111;
+}
+
+/* Inputs & Dropdown */
+.join-form input,
+.join-form select {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  transition: border-color 0.2s ease-in-out;
+  outline: none;
+  background-color: #fafafa;
+}
+
+.join-form input:focus,
+.join-form select:focus {
+  border-color: #007aff;
+  background-color: #fff;
+}
+
+/* Button */
+.join-form button {
+  width: 100%;
+  padding: 14px;
+  font-size: 16px;
+  background-color: #007aff;
+  color: white;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.join-form button:hover {
+  background-color: #005fd4;
+}
+
+/* Responsive: Smaller Devices */
 @media (max-width: 480px) {
+  .join-form {
+    margin: 0 16px;
+    padding: 24px 20px;
+  }
+
+  .join-form h1 {
+    font-size: 22px;
+  }
+
   #topBanner {
-    font-size: 14px;
-    padding: 6px 10px;
-    white-space: pre-wrap;
+    font-size: 13px;
+    top: 12px;
   }
 }
