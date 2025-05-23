@@ -90,7 +90,7 @@ class JoinScene extends Phaser.Scene {
 
     // UI Setup
     this.add.text(180, 50, 'UnClear MVP', {
-      font: '600 24px -apple-system, BlinkMacSystemFont, sans-serif',
+      font: '700 32px -apple-system, BlinkMacSystemFont, sans-serif',
       fill: '#111'
     }).setOrigin(0.5);
 
