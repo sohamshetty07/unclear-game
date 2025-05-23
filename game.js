@@ -89,68 +89,43 @@ class JoinScene extends Phaser.Scene {
     }
 
     // UI Setup
-    this.add.text(180, 50, 'UnClear MVP', {
-      font: '700 32px -apple-system, BlinkMacSystemFont, sans-serif',
-      fill: '#111'
-    }).setOrigin(0.5);
+    this.add.text(90, 40, 'UnClear MVP', {
+      font: '24px Arial',
+      fill: '#000'
+    });
 
-    // Game ID Input
-    const gameIdInput = this.add.dom(180, 120, 'input', {
+    const gameIdInput = this.add.dom(180, 100, 'input', {
       type: 'text',
-      fontSize: '15px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-      width: '220px',
-      padding: '10px 12px',
-      border: '1px solid #ccc',
-      borderRadius: '8px',
-      outline: 'none'
+      fontSize: '16px',
+      width: '200px',
+      padding: '5px'
     });
     gameIdInput.node.placeholder = 'Game ID (leave blank to host)';
 
-    // Name Input
-    const nameInput = this.add.dom(180, 180, 'input', {
+    const nameInput = this.add.dom(180, 160, 'input', {
       type: 'text',
-      fontSize: '15px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-      width: '220px',
-      padding: '10px 12px',
-      border: '1px solid #ccc',
-      borderRadius: '8px',
-      outline: 'none'
+      fontSize: '16px',
+      width: '200px',
+      padding: '5px'
     });
     nameInput.node.placeholder = 'Your Name';
 
-    // Dropdown
     const dropdownHTML = `
-      <select id="playerSlot" style="
-        font-size: 15px;
-        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-        width: 220px;
-        padding: 10px 12px;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        outline: none;
-        appearance: none;
-        background-color: #fff;
-      ">
-      <option value="">Select Player Slot</option>
-      ${[...Array(12).keys()].map(i => `<option value="Player ${i + 1}">Player ${i + 1}</option>`).join('')}
-    </select>`;
-  this.add.dom(180, 240).createFromHTML(dropdownHTML);
+      <select id="playerSlot" style="font-size:16px; width:200px;">
+        <option value="">Select Player Slot</option>
+        ${[...Array(12).keys()].map(i =>
+          `<option value="Player ${i + 1}">Player ${i + 1}</option>`
+        ).join('')}
+      </select>`;
+    this.add.dom(180, 220).createFromHTML(dropdownHTML);
 
-    // Join Button
-    const joinBtn = this.add.dom(180, 310, 'button', {
-      fontSize: '16px',
-      fontWeight: '500',
-      fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-      padding: '12px 22px',
-      backgroundColor: '#007aff',
+    const joinBtn = this.add.dom(180, 290, 'button', {
+      fontSize: '18px',
+      padding: '10px 20px',
+      backgroundColor: '#4CAF50',
       color: '#fff',
       border: 'none',
-      borderRadius: '12px',
-      cursor: 'pointer',
-      boxShadow: '0 3px 6px rgba(0,0,0,0.08)',
-      transition: 'all 0.2s ease-in-out'
+      borderRadius: '5px'
     }, 'Join Game');
 
     joinBtn.addListener('click');
