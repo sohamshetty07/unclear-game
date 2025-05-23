@@ -33,6 +33,12 @@ function startNewRound(session) {
   session.phase = 'clue';
   session.votes = {};
   session.revoted = false;
+
+  // ✅ Reset voting state
+  session.players.forEach(p => {
+    p.hasVoted = false;
+  });
+
   session.readyNext = new Set();
   session.turnOrder = shuffle(session.players.map(p => p.playerSlot));
 
@@ -254,11 +260,20 @@ io.on('connection', socket => {
     const session = gameSessions[gameId];
     if (!session || session.phase !== 'voting') return;
 
-    session.votes[voter] = voted;
+    // Only count votes from non-imposters
+    if (voter !== session.imposterSlot) {
+      session.votes[voter] = voted;
+    }
+
+    // ✅ Track that this player clicked "Submit Vote"
+    const player = session.players.find(p => p.playerSlot === voter);
+    if (player) player.hasVoted = true;
 
     const nonImposters = session.players.filter(p => p.playerSlot !== session.imposterSlot);
-    const allVoted = Object.keys(session.votes).length === nonImposters.length;
-    if (!allVoted) return;
+    const allVotesIn = Object.keys(session.votes).length === nonImposters.length;
+    const everyoneClicked = session.players.every(p => p.hasVoted);
+
+    if (!(allVotesIn && everyoneClicked)) return;
 
     const voteCounts = {};
     Object.values(session.votes).forEach(votedFor => {
