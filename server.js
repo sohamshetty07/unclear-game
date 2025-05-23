@@ -256,7 +256,8 @@ io.on('connection', socket => {
 
     session.votes[voter] = voted;
 
-    const allVoted = Object.keys(session.votes).length === session.players.length - 1;
+    const nonImposters = session.players.filter(p => p.playerSlot !== session.imposterSlot);
+    const allVoted = Object.keys(session.votes).length === nonImposters.length;
     if (!allVoted) return;
 
     const voteCounts = {};
@@ -305,6 +306,10 @@ io.on('connection', socket => {
       map[p.playerSlot] = p.playerName;
       return map;
     }, {});
+
+    const correctGuessers = Object.entries(session.votes)
+      .filter(([_, voted]) => voted === actualImposter)
+      .map(([voter]) => voter);
 
     io.to(gameId).emit('votingResults', {
       votes: session.votes,
