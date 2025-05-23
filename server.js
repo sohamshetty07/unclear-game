@@ -389,6 +389,23 @@ io.on('connection', socket => {
 
   socket.on('disconnect', () => {
     console.log(`🔌 Disconnected: ${socket.id}`);
+    const { gameId, playerSlot } = socket.data || {};
+
+    if (gameId && playerSlot && gameSessions[gameId]) {
+      const session = gameSessions[gameId];
+      session.players = session.players.filter(p => p.socketId !== socket.id);
+
+      // Optional: delete session if no players left
+      if (session.players.length === 0) {
+        delete gameSessions[gameId];
+        console.log(`🗑️ Deleted empty game session ${gameId}`);
+      } else {
+        io.to(gameId).emit('playerJoined', {
+          players: session.players,
+          yourSocketId: socket.id
+        });
+      }
+    }
   });
 });
 

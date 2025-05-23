@@ -93,3 +93,17 @@ body {
     top: 12px;
   }
 }
+
+#landing button {
+  font-size: 16px;
+  padding: 12px 24px;
+  background-color: #007aff;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+#landing button:hover {
+  background-color: #005fd4;
+}
