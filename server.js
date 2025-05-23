@@ -275,6 +275,15 @@ io.on('connection', socket => {
 
     if (!(allVotesIn && everyoneClicked)) return;
 
+    // ✅ Clean invalid votes before counting
+    const validSlots = session.players.map(p => p.playerSlot);
+    Object.keys(session.votes).forEach(voter => {
+      const votedFor = session.votes[voter];
+      if (!validSlots.includes(votedFor)) {
+        delete session.votes[voter]; // remove bad vote
+      }
+    });
+
     const voteCounts = {};
     Object.values(session.votes).forEach(votedFor => {
       voteCounts[votedFor] = (voteCounts[votedFor] || 0) + 1;
@@ -285,8 +294,12 @@ io.on('connection', socket => {
       .filter(([_, count]) => count === maxVotes)
       .map(([slot]) => slot);
 
-    let finalVotedImposter;
+    const playerMap = session.players.reduce((map, p) => {
+      map[p.playerSlot] = p.playerName;
+      return map;
+    }, {});
 
+    let finalVotedImposter;
     if (topVoted.length === 1) {
       finalVotedImposter = topVoted[0];
     } else if (!session.revoted) {
@@ -316,11 +329,6 @@ io.on('connection', socket => {
 
     session.phase = 'results';
     session.revoted = false;
-
-    const playerMap = session.players.reduce((map, p) => {
-      map[p.playerSlot] = p.playerName;
-      return map;
-    }, {});
 
     const correctGuessers = Object.entries(session.votes)
       .filter(([_, voted]) => voted === actualImposter)
