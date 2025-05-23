@@ -283,20 +283,18 @@ io.on('connection', socket => {
     }
 
     const actualImposter = session.imposterSlot;
-    const correctGuessers = Object.entries(session.votes)
-      .filter(([_, votedFor]) => votedFor === actualImposter)
-      .map(([voter]) => voter);
-
+    
+    // Initialize all scores
     session.players.forEach(p => {
-      if (!session.scores[p.playerSlot]) session.scores[p.playerSlot] = 0;
+      session.scores[p.playerSlot] = session.scores[p.playerSlot] || 0;
+    });
 
-      if (p.playerSlot === actualImposter) {
-        const wrongVoters = Object.entries(session.votes)
-          .filter(([_, votedFor]) => votedFor !== actualImposter)
-          .map(([voter]) => voter);
-        session.scores[p.playerSlot] += wrongVoters.length;
-      } else if (session.votes[p.playerSlot] === actualImposter) {
-        session.scores[p.playerSlot] += 1;
+    // Apply scoring logic
+    session.votes.forEach(({ voter, voted }) => {
+      if (voted === actualImposter) {
+        session.scores[voter] += 1; // Correct guesser
+      } else {
+        session.scores[actualImposter] += 1; // Wrong guess → point to imposter
       }
     });
 
