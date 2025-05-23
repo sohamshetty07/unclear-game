@@ -7,36 +7,41 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Top Banner -->
+  <!-- Single Top Banner -->
   <div id="topBanner">Not joined yet</div>
 
-  <!-- Landing Page -->
-  <div id="landing" class="join-form">
-    <h1>Welcome to UnClear 🕵️</h1>
-    <p style="margin-bottom: 24px;">A real-time word guessing game of deception and deduction.</p>
+  <!-- Container for centering -->
+  <div class="center-wrapper">
 
-    <h2 style="color:#007aff;">How to Play</h2>
-    <ol style="text-align: left; font-size: 14px; padding-left: 20px;">
-      <li>Join a game or host one by leaving the Game ID blank.</li>
-      <li>Everyone gets the same word, except the Imposter.</li>
-      <li>Take turns giving verbal clues based on your word.</li>
-      <li>Vote on who the Imposter is — score points if correct!</li>
-    </ol>
+    <!-- Landing Page -->
+    <div id="landing" class="join-form">
+      <h1>Welcome to UnClear 🕵️</h1>
+      <p style="margin-bottom: 24px;">A real-time word guessing game of deception and deduction.</p>
 
-    <button id="startBtn" style="margin-top: 20px;">Start Game</button>
+      <h2 style="color:#007aff;">How to Play</h2>
+      <ol style="text-align: left; font-size: 14px; padding-left: 20px;">
+        <li>Join a game or host one by leaving the Game ID blank.</li>
+        <li>Everyone gets the same word, except the Imposter.</li>
+        <li>Take turns giving verbal clues based on your word.</li>
+        <li>Vote on who the Imposter is — score points if correct!</li>
+      </ol>
+
+      <button id="startBtn" style="margin-top: 20px;">Start Game</button>
+    </div>
+
+    <!-- Join Section -->
+    <div id="join-section" class="join-form" style="display: none;">
+      <div id="game-container"></div>
+    </div>
+
   </div>
 
-  <!-- Join Section (hidden initially) -->
-  <div id="join-section" class="join-form" style="display: none;">
-    <div id="game-container"></div>
-  </div>
-
-  <!-- Load Phaser & game logic -->
+  <!-- Game Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="game.js"></script>
 
-  <!-- Landing-to-Join toggle -->
+  <!-- Toggle logic -->
   <script>
     document.getElementById('startBtn').addEventListener('click', () => {
       document.getElementById('landing').style.display = 'none';
