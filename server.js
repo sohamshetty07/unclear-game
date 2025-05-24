@@ -113,11 +113,6 @@ io.on('connection', socket => {
       socket.data = { gameId, playerSlot, playerName, isHost: existing.isHost };
       socket.join(gameId);
 
-      io.to(gameId).emit('playerJoined', {
-        players: session.players,
-        yourSocketId: socket.id
-      });
-
       // Sync phase
       if (session.phase === 'clue') {
         socket.emit('startRound', {
@@ -159,6 +154,12 @@ io.on('connection', socket => {
             m[p.playerSlot] = p.playerName;
             return m;
           }, {})
+        });
+      } else if (session.phase === 'waiting') {
+        // We're in the lobby — just re-send player list so JoinScene can resume
+        io.to(gameId).emit('playerJoined', {
+          players: session.players,
+          yourSocketId: socket.id
         });
       }
     
@@ -389,8 +390,44 @@ io.on('connection', socket => {
 
   socket.on('disconnect', () => {
     console.log(`🔌 Disconnected: ${socket.id}`);
+
+    const { gameId, playerSlot } = socket.data || {};
+    if (!gameId || !playerSlot) return;
+
+    const session = gameSessions[gameId];
+    if (!session) return;
+
+    const player = session.players.find(p => p.playerSlot === playerSlot);
+    if (!player) return;
+
+    // Mark the time of disconnect
+    player.disconnectedAt = Date.now();
+
+    // Wait 5 seconds to allow rejoin
+    setTimeout(() => {
+      const stillDisconnected = Date.now() - (player.disconnectedAt || 0) >= 5000;
+      const stillInGame = session.players.find(p => p.playerSlot === playerSlot && p.socketId === socket.id);
+ 
+      if (stillDisconnected && stillInGame) {
+        console.log(`⛔ Removing ghost player: ${player.playerName} (${playerSlot})`);
+        session.players = session.players.filter(p => p.playerSlot !== playerSlot);
+
+       // Update player list for everyone
+        io.to(gameId).emit('playerJoined', {
+          players: session.players,
+          yourSocketId: null
+        });
+
+        // Optional: clean up if session is empty
+        if (session.players.length === 0) {
+          delete gameSessions[gameId];
+          console.log(`🗑️ Deleted empty game session: ${gameId}`);
+        }
+      }
+    }, 5000);
   });
 });
+
 
 http.listen(PORT, () => {
   console.log(`✅ Server running at: http://localhost:${PORT}`);
