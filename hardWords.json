@@ -1,0 +1,29 @@
+{
+  "wordPairs": [
+    ["Ephemeral", "Transient"],
+    ["Juxtaposition", "Antithesis"],
+    ["Algorithm", "Heuristic"],
+    ["Ontology", "Epistemology"],
+    ["Paradigm", "Zeitgeist"],
+    ["Sycophant", "Obsequious"],
+    ["Esoteric", "Arcane"],
+    ["Ubiquitous", "Pervasive"],
+    ["Conundrum", "Enigma"],
+    ["Plethora", "Myriad"],
+    ["Superfluous", "Extraneous"],
+    ["Idiosyncrasy", "Eccentricity"],
+    ["Quixotic", "Impractical"],
+    ["Rhetoric", "Dialectic"],
+    ["Didactic", "Pedantic"],
+    ["Existentialism", "Nihilism"],
+    ["Phenomenology", "Hermeneutics"],
+    ["Sociobiology", "Ethology"],
+    ["Quantum", "Relativity"],
+    ["Entropy", "Enthalpy"],
+    ["Catalyst", "Inhibitor"],
+    ["Symbiosis", "Parasitism"],
+    ["Geopolitics", "Psychohistory"],
+    ["Semiotics", "Deconstruction"],
+    ["Cognitive Dissonance", "Confirmation Bias"]
+  ]
+}
