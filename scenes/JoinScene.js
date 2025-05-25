@@ -16,7 +16,6 @@ class JoinScene extends Phaser.Scene {
 
     // Define event handlers as arrow function properties for correct `this` binding
     // and easy removal in shutdown(). `scene` variable is used for clarity in callbacks.
-    // const scene = this; // REMOVED DUPLICATE
 
     this.handlePlayerJoined = ({ players, yourSocketId: id }) => {
       if (!scene.scene.isActive()) {
@@ -172,7 +171,6 @@ class JoinScene extends Phaser.Scene {
       console.log('[JoinScene] New join/host flow.');
     }
 
-    // UI Setup for new join/host (will also be visible briefly during reconnect before sync)
     this.cameras.main.setBackgroundColor('#F5F5F5');
     this.add.text(180, 50, 'Join or Host Game', { // Adjusted Y
       fontFamily: 'Roboto',
