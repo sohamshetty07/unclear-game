@@ -26,10 +26,8 @@ canvas {
 }
 
 #game-container {
-  width: 95%;
-  max-width: 360px;
-  height: 95vh;
-  max-height: 640px;
+  width: 360px;
+  height: 640px;
   background-color: var(--white-color);
   border: 1px solid var(--secondary-accent-color);
   position: relative;

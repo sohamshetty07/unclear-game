@@ -13,9 +13,9 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 io.on('connection', socket => {
   console.log(`[Server] [SocketID: ${socket.id}] New user connected.`);
 
-  socket.on('createGame', ({ gameId, difficulty }) => { 
-    console.log(`[Server] [SocketID: ${socket.id}] Received 'createGame' for GameID: ${gameId}, Difficulty: ${difficulty}.`);
-    gameManager.createGameSession(gameId, io, difficulty); 
+  socket.on('createGame', ({ gameId }) => { 
+    console.log(`[Server] [SocketID: ${socket.id}] Received 'createGame' for GameID: ${gameId}.`);
+    gameManager.createGameSession(gameId, io); 
     socket.join(gameId);
     // GameManager logs successful creation
   });
