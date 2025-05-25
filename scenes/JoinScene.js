@@ -3,6 +3,11 @@ class JoinScene extends Phaser.Scene {
     super('JoinScene');
   }
 
+  init(data) {
+    this.selectedDifficulty = data.difficulty || 'easy'; // Store difficulty from LandingScene
+    console.log('JoinScene received difficulty:', this.selectedDifficulty);
+  }
+
   create() {
     const scene = this;
     const storedGameId = sessionStorage.getItem('gameId');
@@ -10,6 +15,10 @@ class JoinScene extends Phaser.Scene {
     const storedPlayerSlot = sessionStorage.getItem('playerSlot');
 
     // Handle reconnect flow first
+    // If reconnecting, we might skip initial fade-in or handle transitions differently.
+    // For now, initial fade-in will apply to both new entries and reconnects.
+    this.cameras.main.fadeIn(300, 0, 0, 0); 
+
     if (storedGameId && storedPlayerName && storedPlayerSlot) {
       gameId = storedGameId;
       playerName = storedPlayerName;
@@ -28,29 +37,49 @@ class JoinScene extends Phaser.Scene {
       });
 
       socket.on('startRound', ({ word, turnOrder, currentClueTurn, round }) => {
-        this.scene.stop();
-        this.scene.start('RoundScene', { word, turnOrder, currentClueTurn, round });
+        this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+          if (progress === 1) {
+            console.log("PLAY_SOUND: transition.mp3");
+            this.scene.stop(); // Stop current scene after fade
+            this.scene.start('RoundScene', { word, turnOrder, currentClueTurn, round });
+          }
+        });
       });
 
       socket.on('beginVoting', ({ players, alreadyVoted, playerMap }) => {
         const others = players.filter(p => p.playerSlot !== playerSlot);
-        this.scene.stop();
-        this.scene.start('VotingScene', {
-          round: 1,
-          votablePlayers: others,
-          alreadyVoted,
-          playerMap
+        this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+          if (progress === 1) {
+            console.log("PLAY_SOUND: transition.mp3");
+            this.scene.stop();
+            this.scene.start('VotingScene', {
+              round: 1, // Assuming round 1 for reconnect to voting, may need adjustment
+              votablePlayers: others,
+              alreadyVoted,
+              playerMap
+            });
+          }
         });
       });
 
       socket.on('votingResults', (data) => {
-        this.scene.stop();
-        this.scene.start('ResultScene', data);
+        this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+          if (progress === 1) {
+            console.log("PLAY_SOUND: transition.mp3");
+            this.scene.stop();
+            this.scene.start('ResultScene', data);
+          }
+        });
       });
 
       socket.on('showFinalScores', (data) => {
-        this.scene.stop();
-        this.scene.start('FinalScoreScene', data);
+        this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+          if (progress === 1) {
+            console.log("PLAY_SOUND: transition.mp3");
+            this.scene.stop();
+            this.scene.start('FinalScoreScene', data);
+          }
+        });
       });
 
       socket.on('errorMessage', msg => {
@@ -63,47 +92,60 @@ class JoinScene extends Phaser.Scene {
     }
 
     // UI Setup
-    this.add.text(90, 40, 'UnClear MVP', {
-      font: '24px Arial',
-      fill: '#000'
-    });
+    this.cameras.main.setBackgroundColor('#F5F5F5');
+    this.add.text(180, 50, 'Join or Host Game', { // Adjusted Y
+      fontFamily: 'Roboto',
+      fontSize: '24px',
+      color: 'var(--text-color)',
+      fontStyle: 'bold',
+      align: 'center'
+    }).setOrigin(0.5);
 
-    const gameIdInput = this.add.dom(180, 100, 'input', {
+    const gameIdInput = this.add.dom(180, 120, 'input', { // Adjusted Y
       type: 'text',
       fontSize: '16px',
-      width: '200px',
-      padding: '5px'
+      fontFamily: 'Roboto',
+      width: '280px', // Adjusted width
+      padding: '10px',
+      border: '1px solid var(--secondary-accent-color)',
+      borderRadius: '5px'
     });
     gameIdInput.node.placeholder = 'Game ID (leave blank to host)';
 
-    const nameInput = this.add.dom(180, 160, 'input', {
+    const nameInput = this.add.dom(180, 180, 'input', { // Adjusted Y
       type: 'text',
       fontSize: '16px',
-      width: '200px',
-      padding: '5px'
+      fontFamily: 'Roboto',
+      width: '280px', // Adjusted width
+      padding: '10px',
+      border: '1px solid var(--secondary-accent-color)',
+      borderRadius: '5px'
     });
     nameInput.node.placeholder = 'Your Name';
 
     const dropdownHTML = `
-      <select id="playerSlot" style="font-size:16px; width:200px;">
+      <select id="playerSlot" style="font-size:16px; width:280px; padding: 10px; border-radius: 5px; border: 1px solid var(--secondary-accent-color); font-family: Roboto;">
         <option value="">Select Player Slot</option>
         ${[...Array(12).keys()].map(i =>
           `<option value="Player ${i + 1}">Player ${i + 1}</option>`
         ).join('')}
       </select>`;
-    this.add.dom(180, 220).createFromHTML(dropdownHTML);
+    this.add.dom(180, 240).createFromHTML(dropdownHTML); // Adjusted Y
 
-    const joinBtn = this.add.dom(180, 290, 'button', {
-      fontSize: '18px',
-      padding: '10px 20px',
-      backgroundColor: '#4CAF50',
-      color: '#fff',
-      border: 'none',
-      borderRadius: '5px'
-    }, 'Join Game');
+    const joinBtn = this.add.dom(180, 320, 'button', null, 'Join Game').setClassName('button'); // Adjusted Y
+    joinBtn.node.style.transform = 'scale(0.8)'; // Initial scale for pop-in
+
+    this.tweens.add({
+      targets: joinBtn.node,
+      scale: 1,
+      ease: 'Back.easeOut',
+      duration: 300,
+      delay: 200 // Delay slightly after scene fades in
+    });
 
     joinBtn.addListener('click');
     joinBtn.on('click', () => {
+      console.log("PLAY_SOUND: click.mp3");
       playerName = nameInput.node.value;
       playerSlot = document.getElementById('playerSlot').value;
       gameId = gameIdInput.node.value.trim();
@@ -115,7 +157,9 @@ class JoinScene extends Phaser.Scene {
 
       if (!gameId) {
         gameId = generateGameId();
-        socket.emit('createGame', gameId);
+        console.log(`[JoinScene] Generated new Game ID: ${gameId} with difficulty ${this.selectedDifficulty}`);
+        // Pass difficulty when creating a new game
+        socket.emit('createGame', { gameId, difficulty: this.selectedDifficulty }); 
         alert(`Game Created! Share this Game ID: ${gameId}`);
       }
 
@@ -135,39 +179,68 @@ class JoinScene extends Phaser.Scene {
       if (alreadyInGame) {
         updatePlayerBanner();
         socket.emit('syncRequest', { gameId, playerSlot });
-        scene.scene.start('GameScene');
+        // Transition to GameScene with fade-out
+        this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+          if (progress === 1) {
+            console.log("PLAY_SOUND: transition.mp3");
+            scene.scene.start('GameScene');
+          }
+        });
       }
     });
 
-    // Handle all sync scenarios
+    // Handle all sync scenarios (these listeners are for when JoinScene is active *after* initial setup)
+    // The reconnect flow above handles transitions if JoinScene itself is being "reconnected" into.
+    // These ensure if JoinScene is active (e.g. user just filled details but not yet in GameScene)
+    // and a sync event comes, it also fades out.
     socket.on('startRound', ({ word, turnOrder, currentClueTurn, round }) => {
-      console.log('[JoinScene] received startRound after reconnect');
-      this.scene.stop();
-      this.scene.start('RoundScene', { word, turnOrder, currentClueTurn, round });
+      console.log('[JoinScene] received startRound after player joined, before GameScene');
+      this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+        if (progress === 1) {
+          console.log("PLAY_SOUND: transition.mp3");
+          this.scene.stop();
+          this.scene.start('RoundScene', { word, turnOrder, currentClueTurn, round });
+        }
+      });
     });
 
     socket.on('beginVoting', ({ players, alreadyVoted, playerMap }) => {
-      console.log('[JoinScene] received beginVoting after reconnect');
+      console.log('[JoinScene] received beginVoting after player joined, before GameScene');
       const others = players.filter(p => p.playerSlot !== playerSlot);
-      this.scene.stop();
-      this.scene.start('VotingScene', {
-        round: 1,
-        votablePlayers: others,
-        alreadyVoted,
-        playerMap
+      this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+        if (progress === 1) {
+          console.log("PLAY_SOUND: transition.mp3");
+          this.scene.stop();
+          this.scene.start('VotingScene', {
+            round: 1, // Assuming round 1, similar to reconnect logic
+            votablePlayers: others,
+            alreadyVoted,
+            playerMap
+          });
+        }
       });
     });
 
     socket.on('votingResults', (data) => {
-      console.log('[JoinScene] received votingResults after reconnect');
-      this.scene.stop();
-      this.scene.start('ResultScene', data);
+      console.log('[JoinScene] received votingResults after player joined, before GameScene');
+      this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+        if (progress === 1) {
+          console.log("PLAY_SOUND: transition.mp3");
+          this.scene.stop();
+          this.scene.start('ResultScene', data);
+        }
+      });
     });
 
     socket.on('showFinalScores', (data) => {
-      console.log('[JoinScene] received final scores after reconnect');
-      this.scene.stop();
-      this.scene.start('FinalScoreScene', data);
+      console.log('[JoinScene] received final scores after player joined, before GameScene');
+      this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+        if (progress === 1) {
+          console.log("PLAY_SOUND: transition.mp3");
+          this.scene.stop();
+          this.scene.start('FinalScoreScene', data);
+        }
+      });
     });
 
     socket.on('errorMessage', msg => {

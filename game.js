@@ -15,10 +15,14 @@ if (isDebugMode) {
   topBanner.style.top = '10px';
   topBanner.style.left = '50%';
   topBanner.style.transform = 'translateX(-50%)';
-  topBanner.style.fontSize = '14px';
-  topBanner.style.fontFamily = 'Arial, sans-serif';
-  topBanner.style.color = '#222';
-  topBanner.style.fontWeight = 'bold';
+  topBanner.style.fontSize = '12px'; // Slightly smaller for a debug banner
+  topBanner.style.fontFamily = 'Roboto, sans-serif';
+  topBanner.style.color = 'var(--text-color)';
+  topBanner.style.backgroundColor = 'var(--light-gray-color)'; // Light background for the banner
+  topBanner.style.padding = '4px 8px';
+  topBanner.style.borderRadius = '4px';
+  topBanner.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+  topBanner.style.fontWeight = 'normal'; // Normal weight for less emphasis
   topBanner.style.zIndex = '999';
   topBanner.innerText = 'Not joined yet'; // Initial text
   document.body.appendChild(topBanner);

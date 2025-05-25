@@ -2,22 +2,57 @@
 const fs = require('fs');
 const path = require('path');
 
-let wordPairs = [];
-try {
-  const rawData = fs.readFileSync(path.join(__dirname, 'wordConfig.json'));
-  const config = JSON.parse(rawData);
-  if (config && config.wordPairs) {
-    wordPairs = config.wordPairs;
-  } else {
-    console.error("Error: wordConfig.json is missing 'wordPairs' key or is malformed. Using default empty list.");
-  }
-} catch (error) {
-  console.error("Error reading or parsing wordConfig.json:", error);
-  // Fallback to an empty list or a minimal default if reading fails
-  wordPairs = []; 
-}
+// Global wordPairs loading is removed. Word loading will be dynamic within startNewRound.
+
+const PLAYER_AVATARS = ['😀', '😎', '👽', '🤖', '🧑‍🚀', '🌟', '🎉', '🎈', '🎯', '🚀', '💡', '🦊'];
+const CLUE_GIVING_DURATION_SECONDS = 30;
+const VOTING_DURATION_SECONDS = 20;
 
 const gameSessions = {};
+
+function clearSessionTimers(session) {
+    if (session.currentTimer) {
+        clearTimeout(session.currentTimer);
+        session.currentTimer = null;
+        console.log(`[GameManager] [GameID: ${session.gameId}] Cleared currentTimer.`);
+    }
+    if (session.countdownInterval) {
+        clearInterval(session.countdownInterval);
+        session.countdownInterval = null;
+        console.log(`[GameManager] [GameID: ${session.gameId}] Cleared countdownInterval.`);
+    }
+}
+
+function startTimer(session, io, phase, durationSeconds, timeoutCallback) {
+    console.log(`[GameManager] [GameID: ${session.gameId}] Starting timer for phase: ${phase}, duration: ${durationSeconds}s.`);
+    clearSessionTimers(session); // Clear any existing timers first
+
+    let timeLeft = durationSeconds;
+    session.timerPhase = phase; // Store current phase for timer updates
+
+    // Emit initial time
+    io.to(session.gameId).emit('timerUpdate', { phase: session.timerPhase, timeLeft });
+
+    session.countdownInterval = setInterval(() => {
+        timeLeft--;
+        io.to(session.gameId).emit('timerUpdate', { phase: session.timerPhase, timeLeft });
+        if (timeLeft <= 0) {
+            clearInterval(session.countdownInterval);
+            session.countdownInterval = null; 
+            // Timer will be cleared by timeoutCallback or next phase change
+        }
+    }, 1000);
+
+    session.currentTimer = setTimeout(() => {
+        console.log(`[GameManager] ${phase} timer expired for game ${session.gameId}`);
+        clearInterval(session.countdownInterval); // Ensure interval is cleared
+        session.countdownInterval = null;
+        session.currentTimer = null;
+        session.timerPhase = null;
+        timeoutCallback();
+    }, durationSeconds * 1000);
+}
+
 
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
@@ -31,15 +66,20 @@ function getGameSession(gameId) {
   return gameSessions[gameId];
 }
 
-function createGameSession(gameId, io) {
+function createGameSession(gameId, io, difficulty = 'easy') { // Add difficulty parameter with default
   if (gameSessions[gameId]) {
-    return gameSessions[gameId]; // Return existing session
+    // If session exists, should we update its difficulty?
+    // For now, let's assume existing session's difficulty should not be overwritten by a new create call.
+    // Or, if it's a rejoin/recreate attempt, this logic might need refinement.
+    // However, typically createGame is for new games.
+    return gameSessions[gameId]; 
   }
   gameSessions[gameId] = {
-    gameId: gameId, // Store gameId on the session object
+    gameId: gameId,
     players: [],
     currentRound: 1,
-    phase: 'waiting', // Initial phase
+    phase: 'waiting',
+    difficulty: difficulty || 'easy', 
     playerWords: {},
     imposterSlot: '',
     turnOrder: [],
@@ -47,17 +87,24 @@ function createGameSession(gameId, io) {
     votes: {},
     scores: {},
     roundHistory: [],
-    readyNext: new Set(), // Keep track of players ready for the next round
-    revoted: false, // Track if a revote has occurred in the current voting phase
+    readyNext: new Set(),
+    revoted: false,
+    currentTimer: null,       // To store setTimeout ID
+    countdownInterval: null,  // To store setInterval ID
+    timerPhase: null          // To store the phase ('clue' or 'voting') the timer is for
   };
-  console.log(`[GameManager] Game created: ${gameId}`);
+  // Log already exists with gameId and difficulty. Ensure it's clear.
+  // console.log(`[GameManager] Game created: ${gameId} with difficulty: ${gameSessions[gameId].difficulty}`); 
   return gameSessions[gameId];
 }
 
 function addPlayerToSession(session, playerDetails) {
-  if (!session || !session.players) return { error: "Session not found or invalid." };
+  if (!session || !session.players) {
+    console.error("[GameManager] addPlayerToSession: Session not found or invalid.");
+    return { error: "Session not found or invalid." };
+  }
 
-  const { playerName, playerSlot, socketId } = playerDetails; // Ensure socketId is destructured
+  const { playerName, playerSlot, socketId } = playerDetails;
 
   // Validate playerName
   if (!playerName || typeof playerName !== 'string' || playerName.trim().length === 0) {
@@ -89,21 +136,26 @@ function addPlayerToSession(session, playerDetails) {
 
   if (existingPlayer) {
     if (existingPlayer.playerName === trimmedPlayerName) { // Reconnect
-      existingPlayer.socketId = socketId; // Update socketId from playerDetails
+      console.log(`[GameManager] [GameID: ${session.gameId}] Player ${trimmedPlayerName} (${trimmedPlayerSlot}) reconnected with new socketId: ${socketId}.`);
+      existingPlayer.socketId = socketId; 
       existingPlayer.disconnectedAt = null;
-      return existingPlayer; // Return updated existing player
+      return existingPlayer; 
     } else {
-      // Slot is taken by a different player
+      console.warn(`[GameManager] [GameID: ${session.gameId}] Slot ${trimmedPlayerSlot} attempt by ${trimmedPlayerName} denied. Already taken by ${existingPlayer.playerName}.`);
       return { error: "Slot already taken by another player." };
     }
   }
 
   // New player
   const isHost = session.players.length === 0;
+  const slotNumber = parseInt(slotNumberPart, 10);
+  const avatar = PLAYER_AVATARS[(slotNumber - 1) % PLAYER_AVATARS.length];
+
   const newPlayer = {
     ...playerDetails, // includes socketId
     playerName: trimmedPlayerName,
     playerSlot: trimmedPlayerSlot,
+    avatar: avatar, // Assign avatar
     isHost: isHost,
     isReady: false, // Default for new player
     hasVoted: false, // Default for new player
@@ -113,28 +165,32 @@ function addPlayerToSession(session, playerDetails) {
   session.players.push(newPlayer);
   if (!session.scores) session.scores = {};
   session.scores[trimmedPlayerSlot] = 0;
+  console.log(`[GameManager] [GameID: ${session.gameId}] Player ${newPlayer.playerName} (${newPlayer.playerSlot}) added with avatar ${newPlayer.avatar}. Total players: ${session.players.length}.`);
   return newPlayer;
 }
 
 function removePlayerFromSession(session, playerSlot) {
-  if (!session || !session.players) return undefined; // Or null, as per test needs
+  if (!session || !session.players) {
+    console.error("[GameManager] removePlayerFromSession: Session not found or invalid.");
+    return undefined;
+  }
   const playerIndex = session.players.findIndex(p => p.playerSlot === playerSlot);
 
   if (playerIndex === -1) {
-    return undefined; // Player not found
+    console.warn(`[GameManager] [GameID: ${session.gameId}] Player ${playerSlot} not found for removal.`);
+    return undefined; 
   }
 
-  const removedPlayer = session.players.splice(playerIndex, 1)[0]; // Remove and get the player
+  const removedPlayer = session.players.splice(playerIndex, 1)[0]; 
+  console.log(`[GameManager] [GameID: ${session.gameId}] Player ${removedPlayer.playerName} (${removedPlayer.playerSlot}) removed. Remaining players: ${session.players.length}.`);
 
   // Host reassignment logic
   if (removedPlayer.isHost && session.players.length > 0) {
-    session.players[0].isHost = true; // Assign host to the next player (now at index 0)
+    session.players[0].isHost = true; 
+    console.log(`[GameManager] [GameID: ${session.gameId}] Host reassigned to ${session.players[0].playerName} (${session.players[0].playerSlot}).`);
   }
   
-  // Optionally, clean up scores if player is permanently removed
-  // delete session.scores[playerSlot]; 
-
-  return removedPlayer; // Return the removed player object
+  return removedPlayer; 
 }
 
 function getPlayerFromSession(session, playerSlot) {
@@ -154,8 +210,13 @@ function updatePlayerInSession(session, playerSlot, updates) {
 }
 
 function startNewRound(session, io) {
-  if (!session) return;
+  if (!session) {
+    console.error("[GameManager] startNewRound: Session not found.");
+    return;
+  }
+  clearSessionTimers(session); 
   session.phase = 'clue';
+  console.log(`[GameManager] [GameID: ${session.gameId}] Starting new round. Phase set to 'clue'.`);
   session.votes = {};
   session.revoted = false;
 
@@ -174,14 +235,18 @@ function startNewRound(session, io) {
   
   // Handle case for single player (though game logic might not make sense)
   if (session.turnOrder.length === 1) imposterSlot = session.turnOrder[0];
-  
-  if (wordPairs.length === 0) {
-    console.error("CRITICAL: No word pairs loaded. Cannot start round properly.");
-    // Optionally, emit an error to the room or handle this state more gracefully
-    // For now, we'll let it potentially pick undefined, which will show up in logs/client.
+
+  // Dynamically load word pairs based on difficulty
+  let currentWordPairs = loadWordPairsForDifficulty(session.difficulty);
+
+  if (currentWordPairs.length === 0) {
+    console.error(`CRITICAL: No word pairs loaded for difficulty ${session.difficulty} (or fallback failed). Cannot start round properly.`);
+    // Emit an error to the room or handle this state more gracefully.
+    // Using a hardcoded emergency fallback to prevent crash.
+    currentWordPairs = [["Emergency", "Fallback"], ["Default", "Words"]];
   }
 
-  const [word, imposterWord] = wordPairs.length > 0 ? wordPairs[Math.floor(Math.random() * wordPairs.length)] : ["Error", "NoWords"];
+  const [word, imposterWord] = currentWordPairs[Math.floor(Math.random() * currentWordPairs.length)];
   const playerWords = {};
   session.players.forEach(p => {
     playerWords[p.playerSlot] = (p.playerSlot === imposterSlot) ? imposterWord : word;
@@ -202,50 +267,79 @@ function startNewRound(session, io) {
     }
   });
 
-  console.log(`[GameManager] Round ${session.currentRound} started for game ${session.gameId} | Imposter: ${imposterSlot}`);
+  console.log(`[GameManager] [GameID: ${session.gameId}] Round ${session.currentRound} started. Imposter: ${imposterSlot}. Normal word: ${word}. Difficulty: ${session.difficulty}. Word file: ${session.difficulty || 'easy'}Words.json.`);
 }
 
 // Function to advance to the next clue giver or to voting phase
 function nextClueOrVoting(session, io) {
-    if (!session || session.phase !== 'clue') return;
+    if (!session) {
+      console.error("[GameManager] nextClueOrVoting: Session not found.");
+      return;
+    }
+    if (session.phase !== 'clue') {
+        if (session.phase === 'voting' || session.phase === 'results') {
+            console.log(`[GameManager] [GameID: ${session.gameId}] nextClueOrVoting called but phase is already ${session.phase}. No action.`);
+            return;
+        }
+    }
+    clearSessionTimers(session); 
 
     session.clueIndex++;
     if (session.clueIndex < session.turnOrder.length) {
         const nextTurn = session.turnOrder[session.clueIndex];
+        console.log(`[GameManager] [GameID: ${session.gameId}] Advancing to next clue giver: ${nextTurn}.`);
         io.to(session.gameId).emit('nextClueTurn', nextTurn);
+        startTimer(session, io, 'clue', CLUE_GIVING_DURATION_SECONDS, () => {
+            console.log(`[GameManager] [GameID: ${session.gameId}] Clue timer expired for ${nextTurn}. Auto-advancing.`);
+            nextClueOrVoting(session, io); 
+        });
     } else {
         session.phase = 'voting';
+        console.log(`[GameManager] [GameID: ${session.gameId}] All clues given. Transitioning to voting phase.`);
         const playerMap = session.players.reduce((map, p) => {
             map[p.playerSlot] = p.playerName;
             return map;
         }, {});
         io.to(session.gameId).emit('beginVoting', {
             players: session.players,
-            alreadyVoted: false, // Default, will be checked on client/reconnect
+            alreadyVoted: false, 
             playerMap
         });
-        console.log(`[GameManager] Voting phase started for ${session.gameId}`);
+        startTimer(session, io, 'voting', VOTING_DURATION_SECONDS, () => {
+            console.log(`[GameManager] [GameID: ${session.gameId}] Voting timer expired. Forcing vote tally.`);
+            handleSubmitVote(session, null, null, io, true); 
+        });
     }
 }
 
 // Function to handle vote submission and tallying
-function handleSubmitVote(session, voterSlot, votedSlot, io) {
-    if (!session || session.phase !== 'voting') return;
+function handleSubmitVote(session, voterSlot, votedSlot, io, timerExpired = false) {
+    if (!session || session.phase !== 'voting') {
+        console.warn(`[GameManager] [GameID: ${session?.gameId}] handleSubmitVote called in incorrect phase: ${session?.phase}.`);
+        return;
+    }
 
-    const player = getPlayerFromSession(session, voterSlot);
-    if (player) player.hasVoted = true;
-
-    // Imposter votes are not stored
-    if (voterSlot !== session.imposterSlot) {
-      session.votes[voterSlot] = votedSlot;
+    if (voterSlot) { 
+        const player = getPlayerFromSession(session, voterSlot);
+        if (player) {
+            player.hasVoted = true;
+            console.log(`[GameManager] [GameID: ${session.gameId}] Player ${voterSlot} voted for ${votedSlot}.`);
+        }
+        if (voterSlot !== session.imposterSlot) {
+            session.votes[voterSlot] = votedSlot;
+        }
     }
     
-    // Check if all players (including imposter for 'hasVoted' flag) have marked themselves as voted
     const allPlayersMarkedAsVoted = session.players.every(p => p.hasVoted);
 
-    if (!allPlayersMarkedAsVoted) return; // Wait for all players to "submit"
+    if (!allPlayersMarkedAsVoted && !timerExpired) {
+        console.log(`[GameManager] [GameID: ${session.gameId}] Waiting for more votes. ${session.players.filter(p=>!p.hasVoted).length} remaining.`);
+        return; 
+    }
+    
+    console.log(`[GameManager] [GameID: ${session.gameId}] Tallying votes. All voted or timer expired: ${timerExpired}.`);
+    clearSessionTimers(session); 
 
-    // Tally votes from non-imposters
     const voteCounts = {};
     Object.values(session.votes).forEach(votedFor => {
         voteCounts[votedFor] = (voteCounts[votedFor] || 0) + 1;
@@ -298,12 +392,13 @@ function handleSubmitVote(session, voterSlot, votedSlot, io) {
     }
     
     session.phase = 'results';
-    session.revoted = false;
+    session.revoted = false; // Reset revote flag for the next round's voting if any
 
-    // Correct guessers are those non-imposters who voted for the actual imposter
     const correctGuessers = Object.entries(session.votes) 
         .filter(([voter, voted]) => voter !== actualImposter && voted === actualImposter)
         .map(([voter]) => voter);
+    
+    console.log(`[GameManager] [GameID: ${session.gameId}] Vote tally complete. Votes: ${JSON.stringify(session.votes)}. Voted out: ${finalVotedOut}. Imposter: ${actualImposter}. Correct guessers: ${correctGuessers.join(', ')}.`);
 
     io.to(session.gameId).emit('votingResults', {
         votes: session.votes, // These are the valid, non-imposter votes
@@ -318,36 +413,40 @@ function handleSubmitVote(session, voterSlot, votedSlot, io) {
 }
 
 function handleNextRoundReady(session, playerSlot, io) {
-    if (!session) return;
+    if (!session) {
+      console.error("[GameManager] handleNextRoundReady: Session not found.");
+      return;
+    }
     if (!session.readyNext) session.readyNext = new Set();
     session.readyNext.add(playerSlot);
+    console.log(`[GameManager] [GameID: ${session.gameId}] Player ${playerSlot} is ready for the next round. Total ready: ${session.readyNext.size}/${session.players.length}.`);
 
     io.to(session.gameId).emit('nextRoundStatus', Array.from(session.readyNext));
 
     const everyoneReady = session.players.every(p => session.readyNext.has(p.playerSlot));
 
-    if (everyoneReady && session.players.length > 0) { // ensure players exist
+    if (everyoneReady && session.players.length > 0) { 
+        console.log(`[GameManager] [GameID: ${session.gameId}] All players ready. Starting next round.`);
         session.currentRound++;
-        startNewRound(session, io); // Pass io here
+        startNewRound(session, io); 
     }
 }
 
 function handleEndGame(session, playerSlot, io) {
-    if (!session) return false;
+    if (!session) {
+      console.error("[GameManager] handleEndGame: Session not found.");
+      return false;
+    }
     const host = session.players.find(p => p.isHost);
     if (!host || playerSlot !== host.playerSlot) {
-        // Optionally emit error to socket that tried to end game
-        // socket.emit('errorMessage', 'Only the host can end the game.');
+        console.warn(`[GameManager] [GameID: ${session.gameId}] End game attempt by non-host ${playerSlot} or host not found.`);
         return false;
     }
     session.phase = 'final';
-    const playerMap = session.players.reduce((map, p) => {
-        map[p.playerSlot] = p.playerName;
-        return map;
-    }, {});
+    console.log(`[GameManager] [GameID: ${session.gameId}] Host ${playerSlot} ended the game. Transitioning to final scores.`);
     io.to(session.gameId).emit('showFinalScores', {
         scores: session.scores,
-        playerMap
+        players: session.players 
     });
     return true;
 }
@@ -375,3 +474,47 @@ module.exports = {
       }
     }
 };
+
+// Helper function to load word pairs based on difficulty
+function loadWordPairsForDifficulty(difficulty) {
+  const difficultyFile = `${difficulty || 'easy'}Words.json`;
+  let filePath = path.join(__dirname, difficultyFile);
+  let wordPairsToReturn = [];
+
+  try {
+    const rawData = fs.readFileSync(filePath);
+    const config = JSON.parse(rawData);
+    if (config && config.wordPairs && Array.isArray(config.wordPairs)) {
+      wordPairsToReturn = config.wordPairs;
+      console.log(`[GameManager] Successfully loaded ${wordPairsToReturn.length} word pairs from ${difficultyFile}`);
+    } else {
+      console.error(`Error: ${difficultyFile} is missing 'wordPairs' key, is not an array, or is malformed.`);
+      throw new Error(`Malformed file: ${difficultyFile}`); // Trigger fallback
+    }
+  } catch (error) {
+    console.error(`Error reading or parsing ${difficultyFile}:`, error.message);
+    // Fallback to easyWords.json if the specific difficulty file failed (and it wasn't easy already)
+    if (difficulty !== 'easy') {
+      console.warn(`[GameManager] Falling back to easyWords.json due to error with ${difficultyFile}.`);
+      filePath = path.join(__dirname, 'easyWords.json');
+      try {
+        const rawData = fs.readFileSync(filePath);
+        const config = JSON.parse(rawData);
+        if (config && config.wordPairs && Array.isArray(config.wordPairs)) {
+          wordPairsToReturn = config.wordPairs;
+          console.log(`[GameManager] Successfully loaded ${wordPairsToReturn.length} word pairs from easyWords.json (fallback).`);
+        } else {
+          console.error("Error: Fallback easyWords.json is missing 'wordPairs' key, is not an array, or is malformed.");
+        }
+      } catch (fallbackError) {
+        console.error("Error reading or parsing fallback easyWords.json:", fallbackError.message);
+      }
+    }
+  }
+  
+  // If still no words after attempting primary and fallback, return empty (will be handled in startNewRound)
+  if (wordPairsToReturn.length === 0) {
+      console.error(`[GameManager] CRITICAL: All word loading attempts failed, including fallback to easy. Returning empty list.`);
+  }
+  return wordPairsToReturn;
+}
