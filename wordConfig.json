@@ -1,0 +1,20 @@
+{
+  "wordPairs": [
+    ["Apple", "Orange"], ["Cat", "Dog"], ["Beach", "Desert"], ["Teacher", "Professor"],
+    ["Plane", "Helicopter"], ["Milk", "Yogurt"], ["Table", "Chair"], ["Pizza", "Burger"],
+    ["Mountain", "Hill"], ["River", "Stream"], ["Phone", "Tablet"], ["Sun", "Moon"],
+    ["Rain", "Snow"], ["Tea", "Coffee"], ["Lion", "Tiger"], ["Pen", "Pencil"],
+    ["Shirt", "Jacket"], ["School", "College"], ["Bus", "Train"], ["Butter", "Cheese"],
+    ["Glass", "Cup"], ["Laptop", "Desktop"], ["Mirror", "Window"], ["Knife", "Scissors"],
+    ["Foot", "Hand"], ["Book", "Magazine"], ["Camera", "Binoculars"], ["Boat", "Ship"],
+    ["Ice", "Water"], ["Clock", "Watch"],
+    ["Guitar", "Piano"], ["Morning", "Evening"], ["Summer", "Winter"], ["City", "Village"],
+    ["Road", "Path"], ["Forest", "Jungle"], ["Actor", "Singer"], ["Doctor", "Nurse"],
+    ["Painter", "Sculptor"], ["Poem", "Novel"], ["Movie", "Play"], ["Joy", "Sorrow"],
+    ["Peace", "War"], ["Love", "Hate"], ["Friend", "Enemy"], ["Light", "Darkness"],
+    ["Truth", "Lie"], ["Dream", "Reality"], ["Whisper", "Shout"], ["Smile", "Frown"],
+    ["Hot", "Cold"], ["Fast", "Slow"], ["Old", "New"], ["Big", "Small"],
+    ["Up", "Down"], ["Inside", "Outside"], ["Day", "Night"], ["Sunrise", "Sunset"],
+    ["Question", "Answer"], ["Start", "Finish"], ["North", "South"], ["East", "West"]
+  ]
+}

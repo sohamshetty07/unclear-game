@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>UnClear MVP</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
       background: #eee;
@@ -15,10 +16,8 @@
       font-family: sans-serif;
     }
     #game-container {
-      width: 95%;
-      max-width: 360px;
-      height: 95vh;
-      max-height: 640px;
+      width: 360px;
+      height: 640px;
       background: white;
       border: 1px solid #222;
       position: relative;
@@ -37,6 +36,13 @@
   <script src="/socket.io/socket.io.js"></script>
 
   <!-- Load your game logic -->
+  <script src="scenes/LandingScene.js"></script>
+  <script src="scenes/JoinScene.js"></script>
+  <script src="scenes/GameScene.js"></script>
+  <script src="scenes/RoundScene.js"></script>
+  <script src="scenes/VotingScene.js"></script>
+  <script src="scenes/ResultScene.js"></script>
+  <script src="scenes/FinalScoreScene.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
