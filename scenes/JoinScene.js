@@ -16,7 +16,6 @@ class JoinScene extends Phaser.Scene {
 
     // Define event handlers as arrow function properties for correct `this` binding
     // and easy removal in shutdown(). `scene` variable is used for clarity in callbacks.
-    const scene = this;
 
     this.handlePlayerJoined = ({ players, yourSocketId: id }) => {
       if (!scene.scene.isActive()) {
