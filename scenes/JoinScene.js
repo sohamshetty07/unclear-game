@@ -3,9 +3,9 @@ class JoinScene extends Phaser.Scene {
     super('JoinScene');
   }
 
-  init(data) {
-    this.selectedDifficulty = data.difficulty || 'easy'; // Store difficulty from LandingScene
-    console.log('JoinScene received difficulty:', this.selectedDifficulty);
+  init() {
+    // this.selectedDifficulty = data.difficulty || 'easy'; // Store difficulty from LandingScene
+    // console.log('JoinScene received difficulty:', this.selectedDifficulty);
   }
 
   create() {
@@ -14,84 +14,164 @@ class JoinScene extends Phaser.Scene {
     const storedPlayerName = sessionStorage.getItem('playerName');
     const storedPlayerSlot = sessionStorage.getItem('playerSlot');
 
-    // Handle reconnect flow first
-    // If reconnecting, we might skip initial fade-in or handle transitions differently.
-    // For now, initial fade-in will apply to both new entries and reconnects.
+    // Define event handlers as arrow function properties for correct `this` binding
+    // and easy removal in shutdown(). `scene` variable is used for clarity in callbacks.
+    const scene = this;
+
+    this.handlePlayerJoined = ({ players, yourSocketId: id }) => {
+      if (!scene.scene.isActive()) {
+        console.log('[JoinScene] playerJoined event received, but scene is not active. Ignoring.');
+        return;
+      }
+      yourSocketId = id; // Update global `yourSocketId`
+      
+      // Check if the current player (defined by playerName and playerSlot) is in the list
+      const me = players.find(p => p.playerName === playerName && p.playerSlot === playerSlot);
+
+      if (me) {
+        updatePlayerBanner(); // Update the banner with player info
+        
+        // If NOT in reconnect flow (i.e., fresh join), then transition to GameScene.
+        // The reconnect flow relies on other specific sync events (startRound, beginVoting etc.)
+        // to determine the correct scene to transition to.
+        if (!(storedGameId && storedPlayerName && storedPlayerSlot)) {
+          console.log('[JoinScene] playerJoined (new join flow) - transitioning to GameScene.');
+          socket.emit('syncRequest', { gameId, playerSlot }); // Request full game state
+          scene.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+            if (progress === 1) {
+              if (!scene.scene.isActive()) {
+                console.log('[JoinScene] playerJoined fadeOut complete, but scene is not active. Ignoring scene start.');
+                return;
+              }
+              console.log("PLAY_SOUND: transition.mp3");
+              scene.scene.start('GameScene');
+            }
+          });
+        } else {
+          // In reconnect flow, playerJoined just confirms the player is part of the game.
+          // Banner is updated. Scene transition will be handled by startRound, beginVoting etc.
+          console.log('[JoinScene] playerJoined (reconnect flow) - banner updated. Waiting for specific sync event for scene transition.');
+        }
+      } else {
+        // This case should ideally not happen if server logic is correct
+        console.warn('[JoinScene] playerJoined event received, but current player not in the list.');
+      }
+    };
+
+    this.handleStartRound = ({ word, turnOrder, currentClueTurn, round }) => {
+      if (!scene.scene.isActive()) {
+        console.log('[JoinScene] startRound event received, but scene is not active. Ignoring.');
+        return;
+      }
+      console.log('[JoinScene] received startRound. Transitioning to RoundScene.');
+      scene.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+        if (progress === 1) {
+          if (!scene.scene.isActive()) {
+            console.log('[JoinScene] startRound fadeOut complete, but scene is not active. Ignoring scene start.');
+            return;
+          }
+          console.log("PLAY_SOUND: transition.mp3");
+          scene.scene.stop();
+          scene.scene.start('RoundScene', { word, turnOrder, currentClueTurn, round });
+        }
+      });
+    };
+
+    this.handleBeginVoting = ({ players, alreadyVoted, playerMap }) => {
+      if (!scene.scene.isActive()) {
+        console.log('[JoinScene] beginVoting event received, but scene is not active. Ignoring.');
+        return;
+      }
+      console.log('[JoinScene] received beginVoting. Transitioning to VotingScene.');
+      const others = players.filter(p => p.playerSlot !== playerSlot); // Ensure playerSlot is accessible
+      scene.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+        if (progress === 1) {
+          if (!scene.scene.isActive()) {
+            console.log('[JoinScene] beginVoting fadeOut complete, but scene is not active. Ignoring scene start.');
+            return;
+          }
+          console.log("PLAY_SOUND: transition.mp3");
+          scene.scene.stop();
+          scene.scene.start('VotingScene', {
+            round: 1, // Assuming round 1, may need adjustment based on game state (e.g. pass actual round)
+            votablePlayers: others,
+            alreadyVoted,
+            playerMap
+          });
+        }
+      });
+    };
+
+    this.handleVotingResults = (data) => {
+      if (!scene.scene.isActive()) {
+        console.log('[JoinScene] votingResults event received, but scene is not active. Ignoring.');
+        return;
+      }
+      console.log('[JoinScene] received votingResults. Transitioning to ResultScene.');
+      scene.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+        if (progress === 1) {
+          if (!scene.scene.isActive()) {
+            console.log('[JoinScene] votingResults fadeOut complete, but scene is not active. Ignoring scene start.');
+            return;
+          }
+          console.log("PLAY_SOUND: transition.mp3");
+          scene.scene.stop();
+          scene.scene.start('ResultScene', data);
+        }
+      });
+    };
+
+    this.handleShowFinalScores = (data) => {
+      if (!scene.scene.isActive()) {
+        console.log('[JoinScene] showFinalScores event received, but scene is not active. Ignoring.');
+        return;
+      }
+      console.log('[JoinScene] received showFinalScores. Transitioning to FinalScoreScene.');
+      scene.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+        if (progress === 1) {
+          if (!scene.scene.isActive()) {
+            console.log('[JoinScene] showFinalScores fadeOut complete, but scene is not active. Ignoring scene start.');
+            return;
+          }
+          console.log("PLAY_SOUND: transition.mp3");
+          scene.scene.stop();
+          scene.scene.start('FinalScoreScene', data);
+        }
+      });
+    };
+
+    this.handleErrorMessage = (msg) => {
+      // Error messages might be important even if the scene is transitioning.
+      // No direct scene manipulation here, so isActive check is less critical for this specific handler's core action.
+      console.log(`[JoinScene] errorMessage: ${msg}`);
+      alert(msg); // Consider a more robust in-game notification system for later.
+    };
+    
+    // Attach ALL listeners regardless of reconnect or new join.
+    // The logic within handlers (especially handlePlayerJoined) will differentiate behavior.
+    socket.on('playerJoined', this.handlePlayerJoined);
+    socket.on('startRound', this.handleStartRound);
+    socket.on('beginVoting', this.handleBeginVoting);
+    socket.on('votingResults', this.handleVotingResults);
+    socket.on('showFinalScores', this.handleShowFinalScores);
+    socket.on('errorMessage', this.handleErrorMessage);
+    
     this.cameras.main.fadeIn(300, 0, 0, 0); 
 
     if (storedGameId && storedPlayerName && storedPlayerSlot) {
+      console.log('[JoinScene] Reconnect flow: Attempting to rejoin game.');
       gameId = storedGameId;
       playerName = storedPlayerName;
       playerSlot = storedPlayerSlot;
-
-      // 👇 Setup ALL event listeners FIRST
-      socket.on('playerJoined', ({ players, yourSocketId: id }) => {
-        yourSocketId = id;
-        const me = players.find(p =>
-          p.playerName === playerName && p.playerSlot === playerSlot
-        );
-        if (me) {
-          updatePlayerBanner();
-          // Do not jump scenes here; wait for proper sync events
-        }
-      });
-
-      socket.on('startRound', ({ word, turnOrder, currentClueTurn, round }) => {
-        this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
-          if (progress === 1) {
-            console.log("PLAY_SOUND: transition.mp3");
-            this.scene.stop(); // Stop current scene after fade
-            this.scene.start('RoundScene', { word, turnOrder, currentClueTurn, round });
-          }
-        });
-      });
-
-      socket.on('beginVoting', ({ players, alreadyVoted, playerMap }) => {
-        const others = players.filter(p => p.playerSlot !== playerSlot);
-        this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
-          if (progress === 1) {
-            console.log("PLAY_SOUND: transition.mp3");
-            this.scene.stop();
-            this.scene.start('VotingScene', {
-              round: 1, // Assuming round 1 for reconnect to voting, may need adjustment
-              votablePlayers: others,
-              alreadyVoted,
-              playerMap
-            });
-          }
-        });
-      });
-
-      socket.on('votingResults', (data) => {
-        this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
-          if (progress === 1) {
-            console.log("PLAY_SOUND: transition.mp3");
-            this.scene.stop();
-            this.scene.start('ResultScene', data);
-          }
-        });
-      });
-
-      socket.on('showFinalScores', (data) => {
-        this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
-          if (progress === 1) {
-            console.log("PLAY_SOUND: transition.mp3");
-            this.scene.stop();
-            this.scene.start('FinalScoreScene', data);
-          }
-        });
-      });
-
-      socket.on('errorMessage', msg => {
-        alert(msg);
-      });
-
-      // 👇 Only emit joinGame AFTER all listeners are ready
+      // Emit joinGame for reconnect. Server will send appropriate sync events.
       socket.emit('joinGame', { gameId, playerName, playerSlot });
-      return;
+      // Note: No 'return' here. UI for joining/hosting will be set up,
+      // but it will be quickly overlaid or replaced if reconnect is successful and a sync event arrives.
+      // This is acceptable as the main purpose of reconnect is to get back into the game state.
+    } else {
+      console.log('[JoinScene] New join/host flow.');
     }
 
-    // UI Setup
     this.cameras.main.setBackgroundColor('#F5F5F5');
     this.add.text(180, 50, 'Join or Host Game', { // Adjusted Y
       fontFamily: 'Roboto',
@@ -157,9 +237,9 @@ class JoinScene extends Phaser.Scene {
 
       if (!gameId) {
         gameId = generateGameId();
-        console.log(`[JoinScene] Generated new Game ID: ${gameId} with difficulty ${this.selectedDifficulty}`);
+        console.log(`[JoinScene] Generated new Game ID: ${gameId}`);
         // Pass difficulty when creating a new game
-        socket.emit('createGame', { gameId, difficulty: this.selectedDifficulty }); 
+        socket.emit('createGame', { gameId }); 
         alert(`Game Created! Share this Game ID: ${gameId}`);
       }
 
@@ -170,81 +250,42 @@ class JoinScene extends Phaser.Scene {
       socket.emit('joinGame', { gameId, playerName, playerSlot });
     });
 
-    // When players join or rejoin
-    socket.on('playerJoined', ({ players, yourSocketId: id }) => {
-      yourSocketId = id;
-      const alreadyInGame = players.some(p =>
-        p.playerName === playerName && p.playerSlot === playerSlot
-      );
-      if (alreadyInGame) {
-        updatePlayerBanner();
-        socket.emit('syncRequest', { gameId, playerSlot });
-        // Transition to GameScene with fade-out
-        this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
-          if (progress === 1) {
-            console.log("PLAY_SOUND: transition.mp3");
-            scene.scene.start('GameScene');
-          }
-        });
-      }
-    });
+    // When players join or rejoin (This is for the main flow where user fills details and clicks "Join Game")
+    // The reconnect flow above has its own 'playerJoined' listener.
+    // The logic for playerJoined in the main flow is now part of this.handlePlayerJoined
+    socket.on('playerJoined', this.handlePlayerJoined);
 
-    // Handle all sync scenarios (these listeners are for when JoinScene is active *after* initial setup)
-    // The reconnect flow above handles transitions if JoinScene itself is being "reconnected" into.
-    // These ensure if JoinScene is active (e.g. user just filled details but not yet in GameScene)
-    // and a sync event comes, it also fades out.
-    socket.on('startRound', ({ word, turnOrder, currentClueTurn, round }) => {
-      console.log('[JoinScene] received startRound after player joined, before GameScene');
-      this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
-        if (progress === 1) {
-          console.log("PLAY_SOUND: transition.mp3");
-          this.scene.stop();
-          this.scene.start('RoundScene', { word, turnOrder, currentClueTurn, round });
-        }
-      });
-    });
+    // Attach other handlers for the main flow
+    // These ensure that if the game state progresses (e.g., host starts round)
+    // while the user is still on JoinScene (e.g., just after clicking "Join Game"
+    // but before GameScene loads), the JoinScene can correctly transition.
+    socket.on('startRound', this.handleStartRound);
+    socket.on('beginVoting', this.handleBeginVoting);
+    socket.on('votingResults', this.handleVotingResults);
+    socket.on('showFinalScores', this.handleShowFinalScores);
+    socket.on('errorMessage', this.handleErrorMessage);
+  }
 
-    socket.on('beginVoting', ({ players, alreadyVoted, playerMap }) => {
-      console.log('[JoinScene] received beginVoting after player joined, before GameScene');
-      const others = players.filter(p => p.playerSlot !== playerSlot);
-      this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
-        if (progress === 1) {
-          console.log("PLAY_SOUND: transition.mp3");
-          this.scene.stop();
-          this.scene.start('VotingScene', {
-            round: 1, // Assuming round 1, similar to reconnect logic
-            votablePlayers: others,
-            alreadyVoted,
-            playerMap
-          });
-        }
-      });
-    });
-
-    socket.on('votingResults', (data) => {
-      console.log('[JoinScene] received votingResults after player joined, before GameScene');
-      this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
-        if (progress === 1) {
-          console.log("PLAY_SOUND: transition.mp3");
-          this.scene.stop();
-          this.scene.start('ResultScene', data);
-        }
-      });
-    });
-
-    socket.on('showFinalScores', (data) => {
-      console.log('[JoinScene] received final scores after player joined, before GameScene');
-      this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
-        if (progress === 1) {
-          console.log("PLAY_SOUND: transition.mp3");
-          this.scene.stop();
-          this.scene.start('FinalScoreScene', data);
-        }
-      });
-    });
-
-    socket.on('errorMessage', msg => {
-      alert(msg);
-    });
+  shutdown() {
+    console.log('[JoinScene] shutting down and removing listeners.');
+    // Remove all listeners using the stored handler references
+    if (this.handlePlayerJoined) {
+      socket.off('playerJoined', this.handlePlayerJoined);
+    }
+    if (this.handleStartRound) {
+      socket.off('startRound', this.handleStartRound);
+    }
+    if (this.handleBeginVoting) {
+      socket.off('beginVoting', this.handleBeginVoting);
+    }
+    if (this.handleVotingResults) {
+      socket.off('votingResults', this.handleVotingResults);
+    }
+    if (this.handleShowFinalScores) {
+      socket.off('showFinalScores', this.handleShowFinalScores);
+    }
+    if (this.handleErrorMessage) {
+      socket.off('errorMessage', this.handleErrorMessage);
+    }
   }
 }

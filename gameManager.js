@@ -66,7 +66,7 @@ function getGameSession(gameId) {
   return gameSessions[gameId];
 }
 
-function createGameSession(gameId, io, difficulty = 'easy') { // Add difficulty parameter with default
+function createGameSession(gameId, io) { 
   if (gameSessions[gameId]) {
     // If session exists, should we update its difficulty?
     // For now, let's assume existing session's difficulty should not be overwritten by a new create call.
@@ -79,7 +79,7 @@ function createGameSession(gameId, io, difficulty = 'easy') { // Add difficulty 
     players: [],
     currentRound: 1,
     phase: 'waiting',
-    difficulty: difficulty || 'easy', 
+    // difficulty: difficulty || 'easy', // Removed
     playerWords: {},
     imposterSlot: '',
     turnOrder: [],
@@ -93,8 +93,7 @@ function createGameSession(gameId, io, difficulty = 'easy') { // Add difficulty 
     countdownInterval: null,  // To store setInterval ID
     timerPhase: null          // To store the phase ('clue' or 'voting') the timer is for
   };
-  // Log already exists with gameId and difficulty. Ensure it's clear.
-  // console.log(`[GameManager] Game created: ${gameId} with difficulty: ${gameSessions[gameId].difficulty}`); 
+  // console.log(`[GameManager] Game created: ${gameId}`); // Removed difficulty from log
   return gameSessions[gameId];
 }
 
@@ -236,11 +235,11 @@ function startNewRound(session, io) {
   // Handle case for single player (though game logic might not make sense)
   if (session.turnOrder.length === 1) imposterSlot = session.turnOrder[0];
 
-  // Dynamically load word pairs based on difficulty
-  let currentWordPairs = loadWordPairsForDifficulty(session.difficulty);
+  // Dynamically load word pairs
+  let currentWordPairs = loadWordPairs();
 
   if (currentWordPairs.length === 0) {
-    console.error(`CRITICAL: No word pairs loaded for difficulty ${session.difficulty} (or fallback failed). Cannot start round properly.`);
+    console.error(`CRITICAL: No word pairs loaded (or fallback failed). Cannot start round properly.`);
     // Emit an error to the room or handle this state more gracefully.
     // Using a hardcoded emergency fallback to prevent crash.
     currentWordPairs = [["Emergency", "Fallback"], ["Default", "Words"]];
@@ -267,7 +266,7 @@ function startNewRound(session, io) {
     }
   });
 
-  console.log(`[GameManager] [GameID: ${session.gameId}] Round ${session.currentRound} started. Imposter: ${imposterSlot}. Normal word: ${word}. Difficulty: ${session.difficulty}. Word file: ${session.difficulty || 'easy'}Words.json.`);
+  console.log(`[GameManager] [GameID: ${session.gameId}] Round ${session.currentRound} started. Imposter: ${imposterSlot}. Normal word: ${word}.`);
 }
 
 // Function to advance to the next clue giver or to voting phase
@@ -475,10 +474,10 @@ module.exports = {
     }
 };
 
-// Helper function to load word pairs based on difficulty
-function loadWordPairsForDifficulty(difficulty) {
-  const difficultyFile = `${difficulty || 'easy'}Words.json`;
-  let filePath = path.join(__dirname, difficultyFile);
+// Helper function to load word pairs
+function loadWordPairs() {
+  const wordFile = 'allWords.json';
+  let filePath = path.join(__dirname, wordFile);
   let wordPairsToReturn = [];
 
   try {
@@ -486,35 +485,19 @@ function loadWordPairsForDifficulty(difficulty) {
     const config = JSON.parse(rawData);
     if (config && config.wordPairs && Array.isArray(config.wordPairs)) {
       wordPairsToReturn = config.wordPairs;
-      console.log(`[GameManager] Successfully loaded ${wordPairsToReturn.length} word pairs from ${difficultyFile}`);
+      console.log(`[GameManager] Successfully loaded ${wordPairsToReturn.length} word pairs from ${wordFile}`);
     } else {
-      console.error(`Error: ${difficultyFile} is missing 'wordPairs' key, is not an array, or is malformed.`);
-      throw new Error(`Malformed file: ${difficultyFile}`); // Trigger fallback
+      console.error(`Error: ${wordFile} is missing 'wordPairs' key, is not an array, or is malformed.`);
+      // No specific fallback file, will use hardcoded emergency fallback in startNewRound if this fails.
     }
   } catch (error) {
-    console.error(`Error reading or parsing ${difficultyFile}:`, error.message);
-    // Fallback to easyWords.json if the specific difficulty file failed (and it wasn't easy already)
-    if (difficulty !== 'easy') {
-      console.warn(`[GameManager] Falling back to easyWords.json due to error with ${difficultyFile}.`);
-      filePath = path.join(__dirname, 'easyWords.json');
-      try {
-        const rawData = fs.readFileSync(filePath);
-        const config = JSON.parse(rawData);
-        if (config && config.wordPairs && Array.isArray(config.wordPairs)) {
-          wordPairsToReturn = config.wordPairs;
-          console.log(`[GameManager] Successfully loaded ${wordPairsToReturn.length} word pairs from easyWords.json (fallback).`);
-        } else {
-          console.error("Error: Fallback easyWords.json is missing 'wordPairs' key, is not an array, or is malformed.");
-        }
-      } catch (fallbackError) {
-        console.error("Error reading or parsing fallback easyWords.json:", fallbackError.message);
-      }
-    }
+    console.error(`Error reading or parsing ${wordFile}:`, error.message);
+    // No specific fallback file, will use hardcoded emergency fallback in startNewRound if this fails.
   }
   
-  // If still no words after attempting primary and fallback, return empty (will be handled in startNewRound)
+  // If no words loaded, return empty (will be handled by emergency fallback in startNewRound)
   if (wordPairsToReturn.length === 0) {
-      console.error(`[GameManager] CRITICAL: All word loading attempts failed, including fallback to easy. Returning empty list.`);
+      console.error(`[GameManager] CRITICAL: Word loading from ${wordFile} failed. Returning empty list.`);
   }
   return wordPairsToReturn;
 }
