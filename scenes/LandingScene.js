@@ -3,7 +3,7 @@ class LandingScene extends Phaser.Scene {
     super('LandingScene');
   }
   create() {
-    this.cameras.main.setBackgroundColor('var(--background-color)');
+    this.cameras.main.setBackgroundColor('#F5F5F5');
 
     // 🎮 Game Title
     this.add.text(180, 70, 'Welcome to UnClear 🕵️‍♂️', { // Adjusted Y
@@ -67,14 +67,14 @@ class LandingScene extends Phaser.Scene {
     const optionStyle = {
       fontFamily: 'Roboto',
       fontSize: '16px',
-      color: 'var(--white-color)', // Text color for buttons
-      backgroundColor: 'var(--secondary-accent-color)', // Default background
+      color: '#FFFFFF', // Text color for buttons
+      backgroundColor: '#6C757D', // Default background
       padding: { x: 15, y: 8 },
       borderRadius: '5px' // This is a Phaser 3.60 feature for text background
     };
     const selectedOptionStyle = {
       ...optionStyle,
-      backgroundColor: 'var(--primary-accent-color)', // Selected background
+      backgroundColor: '#007BFF', // Selected background
       // fontStyle: 'bold' // Optionally make selected text bold
     };
 
