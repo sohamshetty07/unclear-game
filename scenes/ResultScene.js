@@ -59,7 +59,7 @@ class ResultScene extends Phaser.Scene {
     const imposterNameText = this.add.text(180, y, `Imposter: ${imposterNameStr}`, {
       fontFamily: 'Roboto',
       fontSize: '18px',
-      color: 'var(--warning-color)',
+      color: 'var(--primary-accent-color)',
       fontStyle: 'bold',
       align: 'center'
     }).setOrigin(0.5);

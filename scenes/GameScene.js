@@ -129,6 +129,7 @@ class GameScene extends Phaser.Scene {
       this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
         if (progress === 1) {
           console.log("PLAY_SOUND: transition.mp3"); // Or "round_start.mp3"
+          socket.removeAllListeners('playerJoined');
           this.scene.stop();
           this.scene.start('RoundScene', {
             word, turnOrder, currentClueTurn, round

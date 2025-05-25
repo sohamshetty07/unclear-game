@@ -29,7 +29,7 @@ class RoundScene extends Phaser.Scene {
     this.timerText = this.add.text(180, 20, '', { 
         fontFamily: 'Roboto', 
         fontSize: '16px', 
-        color: 'var(--warning-color)', 
+        color: 'var(--primary-accent-color)', 
         fontStyle: 'bold',
         align: 'center' 
     }).setOrigin(0.5);
