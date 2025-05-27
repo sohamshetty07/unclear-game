@@ -214,13 +214,64 @@ class ResultScene extends Phaser.Scene {
     // So, ResultScene doesn't need to listen for 'startRound' to initiate a fade.
 
     socket.on('showFinalScores', ({ scores, playerMap }) => {
+      if (!this.scene.isActive()) { // Good practice: check if scene is active
+        console.warn('[ResultScene] showFinalScores received but scene not active. Ignoring.');
+        return;
+      }
       this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
         if (progress === 1) {
           console.log("PLAY_SOUND: transition.mp3");
-          scene.scene.stop();
-          scene.scene.start('FinalScoreScene', { scores, playerMap });
+          // Cleanup listeners for ResultScene
+          socket.removeAllListeners('nextRoundStatus');
+          socket.removeAllListeners('startRound');
+          socket.removeAllListeners('showFinalScores'); 
+          // It's good to also remove the listener that triggered this if it won't be used again from this scene instance
+
+          scene.scene.stop('ResultScene'); // Explicitly stop this scene
+          scene.scene.start('FinalScoreScene', { scores, players: this.players }); // Pass this.players as per task context
+        }
+      });
+    });
+
+    socket.on('startRound', ({ word, turnOrder, currentClueTurn, round }) => {
+      if (!this.scene.isActive()) {
+        console.warn('[ResultScene] startRound received but scene not active. Ignoring.');
+        return;
+      }
+      console.log(`[ResultScene] Received startRound for round ${round}. Transitioning to RoundScene.`);
+      this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
+        if (progress === 1) {
+          console.log("PLAY_SOUND: transition.mp3"); // Sound for round start
+
+          // Remove listeners specific to ResultScene to prevent memory leaks or misfires
+          socket.removeAllListeners('startRound');
+          socket.removeAllListeners('nextRoundStatus');
+          socket.removeAllListeners('showFinalScores');
+          // Add any other listeners that ResultScene specifically sets up
+
+          this.scene.stop('ResultScene'); // Explicitly stop this scene
+          this.scene.start('RoundScene', {
+            word, turnOrder, currentClueTurn, round
+          });
         }
       });
     });
   }
+
+  // Optional: A general shutdown method for Phaser scenes
+  // This is good practice but might be redundant if all exit paths (like the handlers above)
+  // already perform cleanup. For this task, the cleanup in handlers is prioritized.
+  /*
+  shutdown() {
+    console.log('[ResultScene] Shutdown called.');
+    // Remove listeners to prevent them from firing when the scene is inactive
+    // Using .off might require named functions if listeners were added that way,
+    // or simply remove all for specific events if sure no other scene needs them.
+    socket.removeAllListeners('startRound');
+    socket.removeAllListeners('nextRoundStatus');
+    socket.removeAllListeners('showFinalScores');
+    // Clear any Phaser-specific event listeners for this scene if necessary
+    // For example, if this.events.on(...) was used.
+  }
+  */
 }
