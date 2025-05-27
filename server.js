@@ -131,6 +131,119 @@ io.on('connection', socket => {
     // GameManager logs successful addition
   });
 
+  socket.on('rejoinGameCheck', ({ gameId, playerName, playerSlot }) => {
+    console.log(`[Server] [SocketID: ${socket.id}] Received 'rejoinGameCheck' for GameID: ${gameId}, Player: ${playerName}, Slot: ${playerSlot}.`);
+    const session = gameManager.getGameSession(gameId);
+
+    if (!session) {
+      console.warn(`[Server] [SocketID: ${socket.id}] rejoinGameCheck failed for ${playerName}: Game session ${gameId} not found.`);
+      socket.emit('errorMessage', 'Game session not found. It might have ended.');
+      // Optionally, instruct client to clear stored data
+      socket.emit('clearPlayerState'); // Client should listen for this
+      return;
+    }
+
+    const player = gameManager.getPlayerFromSession(session, playerSlot);
+    if (!player || player.playerName !== playerName) {
+      console.warn(`[Server] [SocketID: ${socket.id}] rejoinGameCheck failed for ${playerName}: Player not found in game ${gameId} or name mismatch.`);
+      socket.emit('errorMessage', 'Player not found in this game or name mismatch.');
+      socket.emit('clearPlayerState');
+      return;
+    }
+
+    // Update Player's Socket ID and status
+    gameManager.updatePlayerInSession(session, playerSlot, { socketId: socket.id, disconnectedAt: null });
+    socket.data = { gameId, playerSlot, playerName, isHost: player.isHost };
+    socket.join(gameId);
+    console.log(`[Server] [SocketID: ${socket.id}] Player ${playerName} (${playerSlot}) reconnected to game ${gameId}. Syncing to phase: ${session.phase}.`);
+    io.to(gameId).emit('playerReconnectedUpdate', { playerSlot, disconnected: false, playerName: player.playerName });
+
+
+    let sceneName;
+    let sceneData = {};
+
+    switch (session.phase) {
+      case 'waiting':
+        sceneName = 'GameScene'; // Or JoinScene if GameScene is for active games
+        sceneData = { players: session.players, yourSocketId: socket.id, gameId, playerSlot, playerName, isHost: player.isHost };
+        // Also, emit playerJoined to the room as usual to update everyone
+        io.to(gameId).emit('playerJoined', { players: session.players, yourSocketId: socket.id });
+        break;
+      case 'clue':
+        sceneName = 'RoundScene';
+        sceneData = {
+          word: session.playerWords[playerSlot],
+          turnOrder: session.turnOrder,
+          currentClueTurn: session.turnOrder[session.clueIndex],
+          round: session.currentRound,
+          playerSlot,
+          playerName,
+          gameId,
+          isHost: player.isHost,
+          clues: session.clues,
+          imposterName: (playerSlot === session.imposterSlot) ? "You are the Imposter!" : session.players.find(p => p.playerSlot === session.imposterSlot)?.playerName || "Unknown"
+        };
+        break;
+      case 'voting':
+        sceneName = 'VotingScene';
+        const playerMapVoting = session.players.reduce((m, p) => { m[p.playerSlot] = p.playerName; return m; }, {});
+        sceneData = {
+          round: session.currentRound,
+          votablePlayers: session.players.filter(p => p.playerSlot !== playerSlot), // Player cannot vote for themselves
+          tiedPlayers: null, // This is for re-vote scenarios, usually null on initial load
+          playerMap: playerMapVoting,
+          alreadyVoted: session.players.find(p => p.playerSlot === playerSlot)?.hasVoted || false,
+          gameId,
+          playerSlot,
+          playerName,
+          isHost: player.isHost,
+          clues: session.clues,
+          imposterName: (playerSlot === session.imposterSlot) ? "You are the Imposter!" : session.players.find(p => p.playerSlot === session.imposterSlot)?.playerName || "Unknown"
+        };
+        break;
+      case 'results':
+        sceneName = 'ResultScene';
+        const playerMapResults = session.players.reduce((m, p) => { m[p.playerSlot] = p.playerName; return m; }, {});
+        const correctGuessers = Object.entries(session.votes).filter(([_, v]) => v === session.imposterSlot).map(([v_1]) => v_1);
+        sceneData = {
+          round: session.currentRound,
+          votes: session.votes,
+          imposter: session.imposterSlot,
+          correctGuessers,
+          scores: session.scores,
+          playerMap: playerMapResults,
+          players: session.players,
+          votedOut: session.votedOut,
+          isHost: player.isHost,
+          gameId,
+          playerSlot,
+          playerName,
+          imposterName: session.players.find(p => p.playerSlot === session.imposterSlot)?.playerName || "Unknown",
+          playerWord: session.playerWords[playerSlot]
+        };
+        break;
+      case 'final':
+        sceneName = 'FinalScoreScene';
+        sceneData = {
+          scores: session.scores,
+          players: session.players,
+          gameId,
+          playerSlot,
+          playerName,
+          isHost: player.isHost
+        };
+        break;
+      default:
+        // e.g. game not started, or an unknown phase
+        sceneName = 'JoinScene'; // Or LandingScene if preferred
+        sceneData = { gameId }; // Or minimal data
+        console.warn(`[Server] [SocketID: ${socket.id}] Player ${playerName} in game ${gameId} is in unexpected phase '${session.phase}', sending to JoinScene.`);
+        break;
+    }
+
+    socket.emit('syncToScene', { sceneName, sceneData });
+  });
+
   socket.on('toggleReady', ({ gameId, playerSlot, isReady }) => {
     console.log(`[Server] [SocketID: ${socket.id}] Received 'toggleReady' for GameID: ${gameId}, Player: ${playerSlot}, Ready: ${isReady}.`);
     const session = gameManager.getGameSession(gameId);

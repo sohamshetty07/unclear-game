@@ -48,9 +48,9 @@ class FinalScoreScene extends Phaser.Scene {
     const staggerDelay = 150; // Delay between each row animation
 
     // Define column X positions
-    const rankX = scoreboardBgX + scoreboardPadding + 15;
-    const avatarX = rankX + 30;
-    const nameX = avatarX + 35;
+    const rankX = scoreboardBgX + scoreboardPadding + 10;
+    const avatarX = rankX + 25;
+    const nameX = avatarX + 20;
     const scoreX = scoreboardBgX + scoreboardBgWidth - scoreboardPadding - 30; // For right aligning score
 
     playersWithScores.forEach((playerEntry, index) => {

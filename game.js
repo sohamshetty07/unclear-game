@@ -1,4 +1,5 @@
 let socket = io();
+let isRejoining = false;
 let playerName = '';
 let playerSlot = '';
 let gameId = '';
@@ -44,11 +45,9 @@ socket.on('votingResults', resultData => {
 });
 
 socket.on('finalScores', ({ scores, players }) => {
-  const playerMap = {};
-  players.forEach(p => {
-    playerMap[p.playerSlot] = p.playerName;
-  });
-  game.scene.start('FinalScoreScene', { scores, playerMap });
+  // playerMap is no longer needed here as FinalScoreScene now uses the players array directly.
+  console.log('[GameJS] Received finalScores event with scores:', scores, 'and players:', players);
+  game.scene.start('FinalScoreScene', { scores, players });
 });
 
 // Reconnect attempt on refresh
@@ -58,12 +57,28 @@ window.addEventListener('load', () => {
   const savedGameId = sessionStorage.getItem('gameId');
 
   if (savedName && savedSlot && savedGameId) {
+    isRejoining = true;
     playerName = savedName;
     playerSlot = savedSlot;
     gameId = savedGameId;
 
-    console.log(`🔄 Attempting reconnect for ${playerSlot} - ${playerName}`);
-    socket.emit('joinGame', { gameId, playerName, playerSlot });
+    console.log(`🔄 Attempting reconnect for ${playerSlot} - ${playerName} in game ${gameId}`);
+    // Ensure socket is connected (it's initialized globally)
+    // If socket.connected is false, might need to handle reconnection explicitly here or rely on io()'s auto-reconnect
+    socket.emit('rejoinGameCheck', { gameId, playerName, playerSlot });
+  } else {
+    isRejoining = false; // Explicitly set for clarity
+  }
+  // Phaser game initialization will proceed, LandingScene will handle the isRejoining flag
+});
+
+socket.on('syncToScene', ({ sceneName, sceneData }) => {
+  console.log(`SYNC_TO_SCENE: Received scene: ${sceneName} with data:`, sceneData);
+  if (game && game.scene) { // Ensure game and scene manager are available
+    game.scene.start(sceneName, sceneData);
+  } else {
+    console.error('SYNC_TO_SCENE: Phaser game instance or scene manager not available.');
+    // Potentially queue this and try again once Phaser is ready, or handle error
   }
 });
 
