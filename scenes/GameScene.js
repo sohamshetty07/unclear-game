@@ -126,10 +126,15 @@ class GameScene extends Phaser.Scene {
     });
 
     socket.on('startRound', ({ word, turnOrder, currentClueTurn, round }) => {
+      if (!this.scene.isActive()) { // <-- ADDED
+        console.warn('[GameScene] startRound received but scene not active. Ignoring.');
+        return;
+      }
       this.cameras.main.fadeOut(300, 0, 0, 0, (camera, progress) => {
         if (progress === 1) {
           console.log("PLAY_SOUND: transition.mp3"); // Or "round_start.mp3"
           socket.removeAllListeners('playerJoined');
+          socket.removeAllListeners('startRound'); // <-- ADDED
           this.scene.stop();
           this.scene.start('RoundScene', {
             word, turnOrder, currentClueTurn, round
