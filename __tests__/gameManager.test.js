@@ -398,4 +398,103 @@ describe('GameManager', () => {
         expect(session.phase).toBe('voting'); 
     });
   });
+
+  describe('Round Progression and Readiness', () => {
+    let session;
+    const GAME_ID_RDY = 'GAME_RDY';
+
+    beforeEach(() => {
+      // Ensure words can be loaded by startNewRound
+      fs.readFileSync.mockReturnValue(JSON.stringify({ wordPairs: [['test', 'word']] }));
+      session = gameManager.createGameSession(GAME_ID_RDY, mockIo);
+      // Ensure original addPlayerToSession is used, not a mock from other test suites.
+      // The global afterEach in other suites should restore, but good to be aware.
+    });
+
+    afterEach(() => {
+      // Restore any spies specific to this test suite if they weren't restored in individual tests
+      jest.restoreAllMocks(); // General cleanup
+    });
+
+    test('should start the next round if all active players signal ready', () => {
+      const p1 = gameManager.addPlayerToSession(session, createPlayerDetails(1, 'AliceRdy'));
+      const p2 = gameManager.addPlayerToSession(session, createPlayerDetails(2, 'BobRdy'));
+      const p3 = gameManager.addPlayerToSession(session, createPlayerDetails(3, 'CharlieRdy'));
+      
+      session.phase = 'results';
+      session.currentRound = 1;
+      session.readyNext = new Set();
+
+      const startNewRoundSpy = jest.spyOn(gameManager, 'startNewRound');
+
+      gameManager.handleNextRoundReady(session, p1.playerSlot, mockIo);
+      gameManager.handleNextRoundReady(session, p2.playerSlot, mockIo);
+      gameManager.handleNextRoundReady(session, p3.playerSlot, mockIo);
+
+      expect(startNewRoundSpy).toHaveBeenCalledTimes(1);
+      expect(session.currentRound).toBe(2);
+      expect(session.phase).toBe('clue'); // Assuming startNewRound sets phase to 'clue'
+
+      startNewRoundSpy.mockRestore();
+    });
+
+    test('should start the next round with active players if one player disconnected after being ready', () => {
+      const p1 = gameManager.addPlayerToSession(session, createPlayerDetails(1, 'AliceActive'));
+      const p2 = gameManager.addPlayerToSession(session, createPlayerDetails(2, 'BobActive'));
+      const p3 = gameManager.addPlayerToSession(session, createPlayerDetails(3, 'CharlieDC'));
+
+      session.phase = 'results';
+      session.currentRound = 1;
+      session.readyNext = new Set([p3.playerSlot]); // P3 was ready before disconnect
+
+      const playerP3 = gameManager.getPlayerFromSession(session, p3.playerSlot);
+      playerP3.disconnectedAt = Date.now();
+
+      const startNewRoundSpy = jest.spyOn(gameManager, 'startNewRound');
+
+      gameManager.handleNextRoundReady(session, p1.playerSlot, mockIo);
+      gameManager.handleNextRoundReady(session, p2.playerSlot, mockIo);
+
+      expect(startNewRoundSpy).toHaveBeenCalledTimes(1);
+      expect(session.currentRound).toBe(2);
+      // startNewRound shuffles players into turnOrder. Active players should be in turnOrder.
+      expect(session.turnOrder).toBeDefined();
+      expect(session.turnOrder.length).toBe(2); // Only P1 and P2
+      expect(session.turnOrder).toContain(p1.playerSlot);
+      expect(session.turnOrder).toContain(p2.playerSlot);
+      expect(session.turnOrder).not.toContain(p3.playerSlot);
+      
+      startNewRoundSpy.mockRestore();
+    });
+
+    test('should start next round with active players if one disconnects after all were ready, and check is re-triggered', () => {
+      const p1 = gameManager.addPlayerToSession(session, createPlayerDetails(1, 'AliceAllRdy'));
+      const p2 = gameManager.addPlayerToSession(session, createPlayerDetails(2, 'BobAllRdy'));
+      const p3 = gameManager.addPlayerToSession(session, createPlayerDetails(3, 'CharlieAllRdyThenDC'));
+      
+      session.phase = 'results';
+      session.currentRound = 1;
+      // All players were ready
+      session.readyNext = new Set([p1.playerSlot, p2.playerSlot, p3.playerSlot]); 
+
+      // Then P3 disconnects
+      const playerP3 = gameManager.getPlayerFromSession(session, p3.playerSlot);
+      playerP3.disconnectedAt = Date.now();
+
+      const startNewRoundSpy = jest.spyOn(gameManager, 'startNewRound');
+
+      // P1 signals ready again (or any active player, re-triggering the check)
+      gameManager.handleNextRoundReady(session, p1.playerSlot, mockIo);
+
+      expect(startNewRoundSpy).toHaveBeenCalledTimes(1);
+      expect(session.currentRound).toBe(2);
+      expect(session.turnOrder).toBeDefined();
+      expect(session.turnOrder.length).toBe(2);
+      expect(session.turnOrder).toContain(p1.playerSlot);
+      expect(session.turnOrder).toContain(p2.playerSlot);
+      expect(session.turnOrder).not.toContain(p3.playerSlot);
+
+      startNewRoundSpy.mockRestore();
+    });
+  });
 });

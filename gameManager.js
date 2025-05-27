@@ -417,10 +417,18 @@ function handleNextRoundReady(session, playerSlot, io) {
       return;
     }
     if (!session.readyNext) session.readyNext = new Set();
-    session.readyNext.add(playerSlot);
+    // session.readyNext.add(playerSlot); // Moved after logging initial state
     
     const activePlayers = session.players.filter(p => !p.disconnectedAt);
+
+    // New log statements
+    console.log(`[GameManager] [GameID: ${session.gameId}] handleNextRoundReady triggered by: ${playerSlot}`);
+    console.log(`[GameManager] [GameID: ${session.gameId}] All players in session: ${JSON.stringify(session.players.map(p => ({ slot: p.playerSlot, disconnected: !!p.disconnectedAt }) ))}`);
+    console.log(`[GameManager] [GameID: ${session.gameId}] Active players: ${JSON.stringify(activePlayers.map(p => p.playerSlot))}`);
+    console.log(`[GameManager] [GameID: ${session.gameId}] Players currently in readyNext (before adding current player): ${JSON.stringify(Array.from(session.readyNext))}`);
     
+    session.readyNext.add(playerSlot); // Add player to readyNext after logging the initial state
+
     console.log(`[GameManager] [GameID: ${session.gameId}] Player ${playerSlot} is ready for the next round. Total ready: ${session.readyNext.size}. Active players: ${activePlayers.length}. Total players in session: ${session.players.length}.`);
 
     io.to(session.gameId).emit('nextRoundStatus', Array.from(session.readyNext));
