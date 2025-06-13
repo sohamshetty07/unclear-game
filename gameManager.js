@@ -5,8 +5,8 @@ const path = require('path');
 // Global wordPairs loading is removed. Word loading will be dynamic within startNewRound.
 
 const PLAYER_AVATARS = ['😀', '😎', '👽', '🤖', '🧑‍🚀', '🌟', '🎉', '🎈', '🎯', '🚀', '💡', '🦊'];
-const CLUE_GIVING_DURATION_SECONDS = 30;
-const VOTING_DURATION_SECONDS = 20;
+const CLUE_GIVING_DURATION_SECONDS = 60;
+const VOTING_DURATION_SECONDS = 60;
 
 const gameSessions = {};
 
@@ -417,17 +417,41 @@ function handleNextRoundReady(session, playerSlot, io) {
       return;
     }
     if (!session.readyNext) session.readyNext = new Set();
-    session.readyNext.add(playerSlot);
-    console.log(`[GameManager] [GameID: ${session.gameId}] Player ${playerSlot} is ready for the next round. Total ready: ${session.readyNext.size}/${session.players.length}.`);
+    // session.readyNext.add(playerSlot); // Moved after logging initial state
+    
+    const activePlayers = session.players.filter(p => !p.disconnectedAt);
+
+    // New log statements
+    console.log(`[GameManager] [GameID: ${session.gameId}] handleNextRoundReady triggered by: ${playerSlot}`);
+    console.log(`[GameManager] [GameID: ${session.gameId}] All players in session: ${JSON.stringify(session.players.map(p => ({ slot: p.playerSlot, disconnected: !!p.disconnectedAt }) ))}`);
+    console.log(`[GameManager] [GameID: ${session.gameId}] Active players: ${JSON.stringify(activePlayers.map(p => p.playerSlot))}`);
+    console.log(`[GameManager] [GameID: ${session.gameId}] Players currently in readyNext (before adding current player): ${JSON.stringify(Array.from(session.readyNext))}`);
+    
+    session.readyNext.add(playerSlot); // Add player to readyNext after logging the initial state
+
+    console.log(`[GameManager] [GameID: ${session.gameId}] Player ${playerSlot} is ready for the next round. Total ready: ${session.readyNext.size}. Active players: ${activePlayers.length}. Total players in session: ${session.players.length}.`);
 
     io.to(session.gameId).emit('nextRoundStatus', Array.from(session.readyNext));
 
-    const everyoneReady = session.players.every(p => session.readyNext.has(p.playerSlot));
+    if (activePlayers.length === 0 && session.players.length > 0) {
+        console.log(`[GameManager] [GameID: ${session.gameId}] No active players to start next round. All players disconnected. Waiting or game might end.`);
+        return;
+    }
+    
+    // Check if all *active* players are ready
+    const everyoneReady = activePlayers.length > 0 && activePlayers.every(p => session.readyNext.has(p.playerSlot));
 
-    if (everyoneReady && session.players.length > 0) { 
-        console.log(`[GameManager] [GameID: ${session.gameId}] All players ready. Starting next round.`);
+    if (everyoneReady) { 
+        console.log(`[GameManager] [GameID: ${session.gameId}] All active players ready. Starting next round.`);
         session.currentRound++;
         startNewRound(session, io); 
+    } else {
+        const notReadyActivePlayers = activePlayers.filter(p => !session.readyNext.has(p.playerSlot)).map(p => p.playerSlot);
+        if (activePlayers.length > 0) { // Only log if there are active players who could become ready
+            console.log(`[GameManager] [GameID: ${session.gameId}] Waiting for more active players to be ready. Pending: ${notReadyActivePlayers.join(', ')}. Total active: ${activePlayers.length}. Ready count for next round (incl. disconnected): ${session.readyNext.size}.`);
+        }
+        // If activePlayers.length is 0 and session.players.length is 0 (empty game), it will also fall here, which is fine.
+        // If all players are disconnected (covered by the check above), it won't reach here.
     }
 }
 
@@ -443,7 +467,7 @@ function handleEndGame(session, playerSlot, io) {
     }
     session.phase = 'final';
     console.log(`[GameManager] [GameID: ${session.gameId}] Host ${playerSlot} ended the game. Transitioning to final scores.`);
-    io.to(session.gameId).emit('showFinalScores', {
+    io.to(session.gameId).emit('finalScores', {
         scores: session.scores,
         players: session.players 
     });
